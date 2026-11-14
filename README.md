@@ -12,7 +12,7 @@ showing clinicians a warning helps them decide when to trust the model.
 - **Outside view:** MedGemma 27B and other models, where we only see inputs and outputs.
 
 This is a Duke Explainable AI final project. It is built in phases; see `reports/` for each
-phase's results. **Status: Phase 0 (setup and feasibility).**
+phase's results. **Status: Phase 0 complete (see `reports/phase0.md`).**
 
 ## Setup
 
@@ -36,6 +36,7 @@ uv run python scripts/phase0_env_report.py           # hardware + memory estimat
 uv run python scripts/phase0_data_check.py           # MedQA, MedMCQA, MPIB load and sizes
 uv run python scripts/phase0_model_check.py --debug  # load MedGemma 4B, accuracy, activations
 uv run python scripts/phase0_sae_recon.py --debug    # how well Gemma Scope 2 fits MedGemma
+uv run python scripts/phase0_figure.py outputs/phase0_sae_recon/<run>/  # report figure
 uv run pytest                                        # tests
 ```
 

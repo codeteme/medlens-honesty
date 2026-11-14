@@ -22,9 +22,9 @@ sae_recon:
   res_id: "layer_{layer}_width_16k_l0_medium"
   transcoder_id: "transcoder/layer_{layer}_width_16k_l0_medium_affine"
   domains:
-    medqa_chat: 50          # MedQA question, chat-formatted (what the model sees in our probes)
-    medmcqa_explanation: 50 # medical prose (MedMCQA question + explanation), raw text
-    wikitext: 50            # general-domain prose, raw text
+    medqa_chat: 30          # MedQA question, chat-formatted (what the model sees in our probes)
+    medmcqa_explanation: 30 # medical prose (MedMCQA question + explanation), raw text
+    wikitext: 30            # general-domain prose, raw text
   max_tokens: 256
   device: auto
 

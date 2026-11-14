@@ -64,6 +64,14 @@ def tokenize(model: HFLocalModel, texts: dict, max_tokens: int) -> dict[str, lis
 
 
 def summarize(df: pd.DataFrame) -> pd.DataFrame:
+    """Mean metrics per condition.
+
+    CE-recovered is dropped for transcoders: zeroing a single MLP's output barely changes
+    the loss (the debug run measured -0.08 nats on average), so the ratio's denominator is
+    ~0 and the value is meaningless. KL divergence is the headline downstream metric.
+    """
+    df = df.copy()
+    df.loc[df["kind"] == "transcoder", "ce_recovered"] = float("nan")
     keys = ["model", "suite", "kind", "layer", "domain"]
     agg = df.groupby(keys)[METRICS].mean()
     agg["n_texts"] = df.groupby(keys).size()
