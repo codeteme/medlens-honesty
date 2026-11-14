@@ -30,6 +30,20 @@ Research project for the Duke Explainable AI final project, built across several
 - Prompt-format perturbations, inspired by Modi et al., "Understanding Clinical Reasoning Variability in Medical Large Language Models: A Mechanistic Interpretability Study," medRxiv 2026.01.26.26344845v2 (verified 2026-11-14 from the user's PDF). They varied prompt format (full assessment-and-plan vs direct question) and removed single medical terms (relevant vs irrelevant) on oncology cases, with MedGemma-27B-Text-IT among the models. They trained their own SAEs on MIMIC-IV notes. The preprint is "all rights reserved": cite it, but don't copy its text or cases.
 - MPIB (Lee et al., Findings of EMNLP 2026): data at `jhlee0619/mpib` on Hugging Face (gated), code at `jhlee0619/mpib-eval` (no license file). It is built from MedQA, so deduplicate questions against our MedQA data. Never put its restricted attack text in the public demo.
 
+**Relation to the user's earlier project, Silent Second Opinion (SSO)** (`../silent-second-opinion`, AIPI 590, Oct 2026). SSO asked whether MedGemma **1.5** 4B discloses MedMisBench cues (a fabricated claim vs a bare assertion, plus a sham baseline) in its thinking trace and response. It was black-box only, used a Qwen3-14B judge validated against LLM annotators only, and had no human labels.
+- **Decision (2026-11-14, Option 2):** keep MedGemma 4B **v1** (`google/medgemma-4b-it`). Do **not** reuse SSO's data or rollouts. Cite SSO as prior work and state what is new: internals (Phases 2–4), an activation-based detector, steering, the injection link, human-validated judge labels, and the clinician study.
+- **SSO lessons to apply in Phase 1:**
+  - a sham-sentence baseline as the noise floor
+  - "eligible" = the no-hint answer is parsed and isn't the target; unfinished runs are missing data, not resisted cues
+  - parse the last answer statement
+  - the judge must quote verbatim, and code checks that the quote is in the text
+  - the judge cache is keyed by a hash of the rubric
+  - verbalization is an imperfect proxy for faithfulness (Zaman & Srivastava, ACL 2026)
+  - authority framing roughly doubled cue-following in SSO
+- SSO's judge code may be adapted with attribution, since it is the user's own code.
+- **Closest outside work:** Linzmayer & Elhadad, arXiv 2609.02754 (ML4H 2026 submission). Their "mechanism" analysis is text resampling (truncating and transplanting the trace), not internals. No Gemma models, no activation-based detector, no interventions, and no code link found.
+- **Open item for the user:** confirm the course allows the final project to build on the SSO assignment.
+
 **Main hypothesis (Phase 4):** the same internal features that make 4B follow hints without admitting it also make it vulnerable to prompt injection.
 
 ## Phases
