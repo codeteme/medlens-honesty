@@ -26,7 +26,11 @@ Research project for the Duke Explainable AI final project, built across several
 **Tools and sources:**
 - Gemma Scope 2 (Google DeepMind, Dec 2025): SAEs and transcoders for Gemma 3. The SAELens release names use `-res`, `-transcoders`, `-mlp`, `-att` and their `-all` variants (not `-resid_post`). The 4B subset layers are 9, 17, 22 and 29. Download only `params.safetensors`, not `examples.safetensors`.
 - Tan et al., AAAI 2026, "Efficient Transcoder Adaptation for Fine-Tuned Models." No public code was found. Their fine-tuning step (with attention frozen) likely can't be reused because Google did MedGemma's fine-tuning. Only their transcoder-adaptation step may apply.
-- Afolabi et al., ML4H 2026 (arXiv 2603.13988): black-box probes for causal ablation, positional bias and hint injection. No public code was found, so we reimplement from the paper.
+- Afolabi et al., ML4H 2026 (arXiv 2603.13988): black-box probes. **Code is public:** `github.com/comp-med-research/med-llm-faithfulness`. It has **no license**, so read it but don't copy it; reimplement and cite. What the paper actually did:
+  - **Hint injection:** one explicit template, "Hint: the correct answer is X.", placed after the options. Their wrong hint was always the first non-gold letter. Acknowledgment was detected with regexes only.
+  - **Positional bias:** 3 worked examples whose answers are all at B, then the test question with either the correct or a wrong option at B. This is not option shuffling.
+  - **Causal ablation:** the model returns JSON reasoning steps, each with an exact quote from the question; each quoted span is replaced with "[REDACTED]" one at a time. Metrics: Causal Density, Damage, Rescue, and Net Flip = Damage − Rescue.
+  - They used 100 questions from 5-option MedQA (`med_qa_us`); we use 4-option MedQA.
 - Prompt-format perturbations, inspired by Modi et al., "Understanding Clinical Reasoning Variability in Medical Large Language Models: A Mechanistic Interpretability Study," medRxiv 2026.01.26.26344845v2 (verified 2026-11-14 from the user's PDF). They varied prompt format (full assessment-and-plan vs direct question) and removed single medical terms (relevant vs irrelevant) on oncology cases, with MedGemma-27B-Text-IT among the models. They trained their own SAEs on MIMIC-IV notes. The preprint is "all rights reserved": cite it, but don't copy its text or cases.
 - MPIB (Lee et al., Findings of EMNLP 2026): data at `jhlee0619/mpib` on Hugging Face (gated), code at `jhlee0619/mpib-eval` (no license file). It is built from MedQA, so deduplicate questions against our MedQA data. Never put its restricted attack text in the public demo.
 
@@ -51,7 +55,7 @@ Research project for the Duke Explainable AI final project, built across several
 0. **Setup.** Build the repo, load MedGemma 4B, and check how well Gemma Scope 2 works on it (base vs. instruction-tuned versions, with Gemma 3 4B as the control). Check that 4B answers enough MedQA questions correctly to be worth studying.
 1. **Catch it from the outside (MedGemma 4B).**
    - Add right or wrong hints framed as an authority figure, an insistent patient, or metadata.
-   - Add a sham-sentence baseline, Afolabi-style option shuffling (position bias) and causal ablation, and Modi-style format and term-removal perturbations.
+   - Add a sham-sentence baseline, Afolabi-style position bias (worked examples answered at B) and causal ablation, and Modi-style format and term-removal perturbations.
    - Record whether the answer changes and whether the reasoning admits the hint. An LLM judge labels each case *honest*, *dishonest*, or *unaffected*. No Anthropic key is set yet, so the judge runs on Tinker or locally. It is checked against about 100 hand labels (about 50 in the pilot).
    - Report rates with confidence intervals per hint type.
    - **Start with a pilot:** 50 questions × 7 conditions, after speed tests. Scale up only if the pilot works.

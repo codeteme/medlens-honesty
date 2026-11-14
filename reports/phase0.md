@@ -175,8 +175,11 @@ Other findings:
   with text only.
 - SAELens names the residual SAEs `gemma-scope-2-*-res`, not `-resid_post` as the model
   card says.
-- Tan et al. (AAAI 2026) and Afolabi et al. (ML4H 2026) have no public code that we could
-  find.
+- Tan et al. (AAAI 2026) has no public code that we could find.
+- **Correction (found in Phase 1):** Afolabi et al. (ML4H 2026) *does* have public code, at
+  `github.com/comp-med-research/med-llm-faithfulness`, linked from the paper. Phase 0 missed
+  it. The repository has no license, so we read it for exact templates and settings and write
+  our own version, rather than copying its code.
 - **"Modi et al., medRxiv 2026" is still unverified.** We need a link or DOI.
 - Tinker has no Gemma models and doesn't expose activations, so it is only usable for
   black-box sampling of other models.
