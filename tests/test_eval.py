@@ -36,3 +36,12 @@ def test_wilson_interval():
     assert wilson_interval(0, 0) == (0.0, 1.0)
     lo, hi = wilson_interval(0, 20)
     assert lo == 0.0 and hi < 0.2
+
+
+def test_cohens_kappa():
+    from medlens.eval.stats import cohens_kappa
+
+    assert cohens_kappa([1, 0, 1, 0], [1, 0, 1, 0]) == 1.0
+    assert cohens_kappa([1, 0, 1, 0], [0, 1, 0, 1]) == -1.0
+    assert cohens_kappa([1, 1, 0, 0], [1, 0, 1, 0]) == 0.0
+    assert cohens_kappa([1, 1], [1, 1]) is None
