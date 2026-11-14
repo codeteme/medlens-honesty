@@ -47,3 +47,8 @@ dev = [
     "pytest>=9.2.0",
     "ruff>=0.17.5",
 ]
+
+[tool.ruff.lint.per-file-ignores]
+# Prompt/rubric text and test fixtures are kept verbatim rather than wrapped.
+"src/medlens/blackbox/judge.py" = ["E501"]
+"tests/*" = ["E501"]

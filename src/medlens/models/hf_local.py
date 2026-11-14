@@ -12,7 +12,7 @@ text only. `get_decoder()` returns the language model for both model classes.
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Sequence
 from contextlib import contextmanager
 from typing import Any
 
@@ -102,27 +102,59 @@ class HFLocalModel:
     @torch.no_grad()
     def generate(self, messages: list[Message], max_new_tokens: int = 1024) -> Generation:
         """Greedy decoding, so local generations are deterministic."""
-        input_ids = self.encode(self.chat_prompt(messages), chat_formatted=True)
-        out = self.model.generate(
-            input_ids=input_ids,
-            attention_mask=torch.ones_like(input_ids),
-            max_new_tokens=max_new_tokens,
-            do_sample=False,
-        )
-        new_tokens = out[0, input_ids.shape[1] :]
-        stopped = len(new_tokens) < max_new_tokens
-        return Generation(
-            text=self.tokenizer.decode(new_tokens, skip_special_tokens=True),
-            model=self.name,
-            usage=Usage(input_tokens=input_ids.shape[1], output_tokens=len(new_tokens)),
-            stop_reason="end_turn" if stopped else "max_tokens",
-        )
+        return self.generate_batch([messages], max_new_tokens)[0]
+
+    def _eos_ids(self) -> set[int]:
+        eos = self.model.generation_config.eos_token_id
+        ids = set(eos if isinstance(eos, list) else [eos])
+        if self.tokenizer.eos_token_id is not None:
+            ids.add(self.tokenizer.eos_token_id)
+        return ids
+
+    @torch.no_grad()
+    def generate_batch(
+        self, batch: list[list[Message]], max_new_tokens: int = 1024
+    ) -> list[Generation]:
+        """Greedy decoding of several chats at once (left-padded).
+
+        Results are deterministic for a fixed batch composition. Padding can change floating
+        point details slightly, so the same prompt may decode differently in a different batch;
+        experiments therefore fix the batch size in their config.
+        """
+        texts = [self.chat_prompt(m) for m in batch]
+        old_side = self.tokenizer.padding_side
+        self.tokenizer.padding_side = "left"
+        try:
+            enc = self.tokenizer(
+                texts, return_tensors="pt", padding=True, add_special_tokens=False
+            ).to(self.device)
+        finally:
+            self.tokenizer.padding_side = old_side
+        out = self.model.generate(**enc, max_new_tokens=max_new_tokens, do_sample=False)
+        eos, pad = self._eos_ids(), self.tokenizer.pad_token_id
+        gens = []
+        for i in range(len(batch)):
+            new = out[i, enc["input_ids"].shape[1] :].tolist()
+            end = next((j for j, t in enumerate(new) if t in eos), None)
+            tokens = [t for t in (new if end is None else new[:end]) if t != pad]
+            gens.append(
+                Generation(
+                    text=self.tokenizer.decode(tokens, skip_special_tokens=True),
+                    model=self.name,
+                    usage=Usage(
+                        input_tokens=int(enc["attention_mask"][i].sum()),
+                        output_tokens=len(tokens),
+                    ),
+                    stop_reason="end_turn" if end is not None else "max_tokens",
+                )
+            )
+        return gens
 
     # ---- activations -----------------------------------------------------
     @contextmanager
     def hooks(
         self,
-        capture: list[tuple[int, str]] = (),
+        capture: Sequence[tuple[int, str]] = (),
         replace: dict[tuple[int, str], HookFn] | None = None,
     ) -> Iterator[dict[tuple[int, str], torch.Tensor]]:
         """Capture and/or replace activations at (layer, site) points during forward passes.
@@ -162,7 +194,7 @@ class HFLocalModel:
     def forward_logits(
         self,
         input_ids: torch.Tensor,
-        capture: list[tuple[int, str]] = (),
+        capture: Sequence[tuple[int, str]] = (),
         replace: dict[tuple[int, str], HookFn] | None = None,
     ) -> tuple[torch.Tensor, dict[tuple[int, str], torch.Tensor]]:
         with self.hooks(capture=capture, replace=replace) as store:

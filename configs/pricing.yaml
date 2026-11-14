@@ -7,4 +7,4 @@ anthropic:
   claude-haiku-5-5: {input: 0.10, output: 0.50}  # prompts up to 100K tokens
 tinker:
   _source: "tinker-docs.thinkingmachines.ai Models & Pricing, read 2026-11-14"
-  Qwen3.8-27B: {input: 0.6975, output: 5.595}
+  Qwen/Qwen3.8-27B: {input: 0.6975, output: 5.595}  # input = uncached prefill price

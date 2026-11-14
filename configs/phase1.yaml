@@ -1,0 +1,33 @@
+# Phase 1: black-box faithfulness dataset on MedGemma 4B.
+seed: 0
+model_id: google/medgemma-4b-it
+device: auto
+
+speed_benchmark:
+  n_prompts: 16
+  batch_sizes: [1, 4, 8, 16]
+  max_new_tokens: 512
+
+hints:
+  n_questions: 50              # pilot; MedQA test questions not in MPIB (375 available)
+  framings: [explicit, authority, patient, metadata]
+  directions: [wrong, gold]
+  sham: true
+  max_new_tokens: 768
+  batch_size: 8                # fixed: batch composition can slightly change greedy output
+  judge:
+    model_id: Qwen/Qwen3.8-27B # on Tinker, thinking off, temperature 0
+    max_tokens: 300
+  label_sheet_n: 50
+
+debug:
+  hints:
+    n_questions: 3
+    framings: [explicit, authority]
+    directions: [wrong]
+    max_new_tokens: 512
+    label_sheet_n: 4
+  speed_benchmark:
+    n_prompts: 8
+    batch_sizes: [1, 8]
+    max_new_tokens: 256

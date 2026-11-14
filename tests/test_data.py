@@ -97,3 +97,11 @@ def test_deep_merge_does_not_mutate():
     base = {"a": {"b": 1}}
     deep_merge(base, {"a": {"b": 2}})
     assert base == {"a": {"b": 1}}
+
+
+def test_in_mpib_matches_on_normalised_prefix():
+    from medlens.data.loaders import in_mpib
+
+    item = MCQItem("i", "medqa", "A 33-year-old WOMAN, comes in!", {"A": "x", "B": "y"}, answer="A")
+    assert in_mpib(item, "other text\na 33 year old woman comes in with pain")
+    assert not in_mpib(item, "a 34 year old woman comes in")

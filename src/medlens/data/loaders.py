@@ -11,6 +11,7 @@ from __future__ import annotations
 import hashlib
 import json
 import random
+import re
 from collections.abc import Iterable, Mapping
 from typing import Any
 
@@ -132,3 +133,25 @@ def load_wikitext_paragraphs(
         t.strip() for t in lines if len(t.strip()) >= min_chars and not t.strip().startswith("=")
     ]
     return random.Random(seed).sample(paragraphs, min(n, len(paragraphs)))
+
+
+def _norm_text(s: str) -> str:
+    return re.sub(r"[\W_]+", " ", (s or "").lower()).strip()
+
+
+def mpib_medqa_anchor_blob() -> str:
+    """All MedQA-derived MPIB anchor questions (every split), normalised and joined.
+
+    On 2026-11-14, 898 of the 1,273 MedQA test questions appeared in MPIB anchors.
+    """
+    rows = [r for split in ("train", "validation", "test") for r in load_mpib_raw(split)]
+    return "\n".join(
+        _norm_text(r["metadata"]["anchor_query"])
+        for r in rows
+        if r["metadata"]["source"] == "MedQA"
+    )
+
+
+def in_mpib(item: MCQItem, anchor_blob: str, prefix_chars: int = 150) -> bool:
+    """True if the start of the question appears in any MPIB anchor."""
+    return _norm_text(item.question)[:prefix_chars] in anchor_blob
