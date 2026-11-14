@@ -1,0 +1,39 @@
+# Phase 0 feasibility checks. Run any script with --debug for the small/fast version.
+seed: 0
+
+data:
+  medqa_split: test
+  medmcqa_split: validation
+  n_preview: 3
+
+model_check:
+  model_id: google/medgemma-4b-it
+  device: auto
+  layers: [9, 17, 22, 29]        # Gemma Scope 2 subset layers for 4B
+  n_direct: 200                  # answer-letter accuracy (one forward pass each)
+  n_cot: 20                      # step-by-step answers (slow: full generation)
+  max_new_tokens: 768
+  n_activation_cache: 20         # prompts whose activations are saved to disk
+
+sae_recon:
+  models: [google/medgemma-4b-it, google/gemma-3-4b-it]   # second is the no-fine-tune control
+  suites: [it, pt]                                         # Gemma Scope 2 trained on Gemma 3 4B IT / PT
+  layers: [9, 17, 22, 29]
+  res_id: "layer_{layer}_width_16k_l0_medium"
+  transcoder_id: "transcoder/layer_{layer}_width_16k_l0_medium_affine"
+  domains:
+    medqa_chat: 50          # MedQA question, chat-formatted (what the model sees in our probes)
+    medmcqa_explanation: 50 # medical prose (MedMCQA question + explanation), raw text
+    wikitext: 50            # general-domain prose, raw text
+  max_tokens: 256
+  device: auto
+
+debug:
+  model_check:
+    n_direct: 20
+    n_cot: 3
+    max_new_tokens: 512
+    n_activation_cache: 5
+  sae_recon:
+    layers: [17]
+    domains: {medqa_chat: 7, medmcqa_explanation: 7, wikitext: 6}

@@ -64,6 +64,7 @@ def normalize_medmcqa_row(row: Mapping[Any, Any], split: str) -> MCQItem:
             "subject": None if _isna(row.get("subject_name")) else row["subject_name"],
             "topic": None if _isna(row.get("topic_name")) else row["topic_name"],
             "choice_type": row.get("choice_type"),
+            "explanation": None if _isna(row.get("exp")) else row["exp"],
         },
     )
 
@@ -114,3 +115,20 @@ def question_overlap(a: Iterable[str], b: Iterable[str]) -> set[str]:
         return " ".join(s.lower().split())
 
     return {norm(x) for x in a} & {norm(x) for x in b}
+
+
+WIKITEXT_REPO = "Salesforce/wikitext"
+
+
+def load_wikitext_paragraphs(
+    n: int, seed: int = 0, min_chars: int = 600, config: str = "wikitext-103-raw-v1"
+) -> list[str]:
+    """General-domain prose (Wikipedia articles) as a non-medical comparison text."""
+    path = hf_hub_download(
+        WIKITEXT_REPO, f"{config}/test-00000-of-00001.parquet", repo_type="dataset"
+    )
+    lines = pd.read_parquet(path)["text"].tolist()
+    paragraphs = [
+        t.strip() for t in lines if len(t.strip()) >= min_chars and not t.strip().startswith("=")
+    ]
+    return random.Random(seed).sample(paragraphs, min(n, len(paragraphs)))

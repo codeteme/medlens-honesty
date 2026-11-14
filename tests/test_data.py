@@ -57,6 +57,7 @@ def test_medmcqa_cop_maps_to_letter_and_nan_fields_become_none():
     item = normalize_medmcqa_row(row, "validation")
     assert item.answer == "C" and item.options["C"] == "c"
     assert item.meta["subject"] == "Anatomy" and item.meta["topic"] is None
+    assert item.meta["explanation"] is None
 
 
 def test_medmcqa_rejects_unanswered_rows():

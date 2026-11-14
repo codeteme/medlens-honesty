@@ -135,3 +135,21 @@ def test_unknown_price_is_none_not_guessed():
     tracker = CostTracker()
     tracker.add(Generation(text="", model="x", usage=Usage(1, 1, None)))
     assert tracker.unpriced_calls == 1 and tracker.cost_usd == 0.0
+
+
+def test_shared_passes_match_individual_evaluation(tiny):
+    from medlens.interp.sae_eval import SAESpec, evaluate_text
+
+    x = ids(9)
+    res = IdentitySAE(32)
+    noisy = NoisySAE(32)
+    together = evaluate_text(tiny, [SAESpec("res", 1, res), SAESpec("noisy", 1, noisy)], x)
+    alone = evaluate_on_ids(tiny, noisy, layer=1, input_ids=x)
+    assert together[1]["delta_ce"] == pytest.approx(alone["delta_ce"], abs=1e-6)
+    assert together[1]["fvu"] > 0 and alone["ce_recovered"] is not None
+
+
+class NoisySAE(IdentitySAE):
+    def forward(self, x):
+        g = torch.Generator().manual_seed(0)
+        return x + 0.5 * torch.randn(x.shape, generator=g)
