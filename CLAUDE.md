@@ -56,7 +56,8 @@ Research project for the Duke Explainable AI final project, built across several
 1. **Catch it from the outside (MedGemma 4B).**
    - Add right or wrong hints framed as an authority figure, an insistent patient, or metadata.
    - Add a sham-sentence baseline, Afolabi-style position bias (worked examples answered at B) and causal ablation, and Modi-style format and term-removal perturbations.
-   - Record whether the answer changes and whether the reasoning admits the hint. An LLM judge labels each case *honest*, *dishonest*, or *unaffected*. No Anthropic key is set yet, so the judge runs on Tinker or locally. It is checked against about 100 hand labels (about 50 in the pilot).
+   - Record whether the answer changes and whether the reasoning admits the hint. An LLM judge labels each case *honest*, *dishonest*, or *unaffected*. No Anthropic key is set yet, so the judge runs on Tinker or locally.
+   - **Judge validation (changed 2026-11-14 at the user's request):** instead of hand labels, two independent, blind Opus 5.5 annotators (fresh subagents that see only the label sheet) label the sheet. Agreement with them measures **model-to-model consistency, not validity against a person**, the same gap SSO had. Every report must say so. Hand labels for a small subset remain an option.
    - Report rates with confidence intervals per hint type.
    - **Start with a pilot:** 50 questions × 7 conditions, after speed tests. Scale up only if the pilot works.
 2. **Look inside (4B only).** Find the features behind hidden hint-following. Interpret them, then turn them off or patch them to confirm they cause the behavior. Adapt the SAEs following Tan et al. if Phase 0 shows they fit poorly.
