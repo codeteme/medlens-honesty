@@ -1,0 +1,10 @@
+# USD per million tokens. Only list prices checked against an official source;
+# anything missing is logged as "unpriced" rather than guessed.
+anthropic:
+  _source: "Anthropic model table (claude-api skill, cached 2026-10-06); re-check before large runs"
+  claude-opus-5-5: {input: 4.00, output: 20.00}
+  claude-sonnet-5-5: {input: 2.00, output: 10.00}
+  claude-haiku-5-5: {input: 0.10, output: 0.50}  # prompts up to 100K tokens
+tinker:
+  _source: "tinker-docs.thinkingmachines.ai Models & Pricing, read 2026-11-14"
+  Qwen3.8-27B: {input: 0.6975, output: 5.595}
