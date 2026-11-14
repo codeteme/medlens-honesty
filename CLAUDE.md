@@ -16,11 +16,18 @@ Research project for the Duke Explainable AI final project, built across several
 
 **Hardware decision (2026-11-14):** development runs on an Apple M4 with 24 GB of memory, no CUDA GPU, and limited free disk. 27B can't run there at full precision. Tinker (Thinking Machines, $500 credit) has no Gemma models and exposes no activations, so it's used only for black-box sampling of open models. MedGemma 27B will be used for black-box tests only, through a host we haven't picked yet. The first option to test is a 4-bit version running locally.
 
+**Compute decision (2026-11-14, user chose "A first, B as fallback"):**
+- **A (default):** no Colab. Tinker's `Qwen/Qwen3.8-27B` is the large open comparison model. MedGemma 4B generation is sped up with batching on the Mac. A 4-bit MedGemma 27B is tried locally.
+- **B (fallback):** add Google Colab if batched 4B generation or local 4-bit 27B is too slow. The user's Colab tier is still unknown.
+- At the start of Phase 1, benchmark both before launching large runs.
+- The Tinker key works. Its model list (checked 2026-11-14) has 38 models and no Gemma or MedGemma. `openai/gpt-oss-20b` and `-120b` are available; it is untested whether Tinker returns their raw reasoning.
+- `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` and `GOOGLE_API_KEY` are still empty.
+
 **Tools and sources:**
 - Gemma Scope 2 (Google DeepMind, Dec 2025): SAEs and transcoders for Gemma 3. The SAELens release names use `-res`, `-transcoders`, `-mlp`, `-att` and their `-all` variants (not `-resid_post`). The 4B subset layers are 9, 17, 22 and 29. Download only `params.safetensors`, not `examples.safetensors`.
 - Tan et al., AAAI 2026, "Efficient Transcoder Adaptation for Fine-Tuned Models." No public code was found. Their fine-tuning step (with attention frozen) likely can't be reused because Google did MedGemma's fine-tuning. Only their transcoder-adaptation step may apply.
 - Afolabi et al., ML4H 2026 (arXiv 2603.13988): black-box probes for causal ablation, positional bias and hint injection. No public code was found, so we reimplement from the paper.
-- Prompt-format perturbations, "inspired by Modi et al., medRxiv 2026." That paper is still unverified; we're waiting on a link from the user.
+- Prompt-format perturbations, inspired by Modi et al., "Understanding Clinical Reasoning Variability in Medical Large Language Models: A Mechanistic Interpretability Study," medRxiv 2026.01.26.26344845v2 (verified 2026-11-14 from the user's PDF). They varied prompt format (full assessment-and-plan vs direct question) and removed single medical terms (relevant vs irrelevant) on oncology cases, with MedGemma-27B-Text-IT among the models. They trained their own SAEs on MIMIC-IV notes. The preprint is "all rights reserved": cite it, but don't copy its text or cases.
 - MPIB (Lee et al., Findings of EMNLP 2026): data at `jhlee0619/mpib` on Hugging Face (gated), code at `jhlee0619/mpib-eval` (no license file). It is built from MedQA, so deduplicate questions against our MedQA data. Never put its restricted attack text in the public demo.
 
 **Main hypothesis (Phase 4):** the same internal features that make 4B follow hints without admitting it also make it vulnerable to prompt injection.
