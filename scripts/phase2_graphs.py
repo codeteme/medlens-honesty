@@ -77,31 +77,45 @@ def draw(g, hint_pos: set[int], title: str, out: Path) -> None:
         if p in hint_pos:
             ax.axvspan(xpos[p] - 0.5, xpos[p] + 0.5, color=HINT_BG, zorder=0)
     wmax = max([abs(w) for *_, w in g.edges] or [1.0])
+    amax = max(abs(n.attribution) for n in g.nodes)
+    # Several features can sit at the same (token, layer); spread them sideways and label only
+    # the strongest one, so labels do not overlap.
+    spots: dict[tuple[int, int], list[int]] = {}
+    for i, n in enumerate(g.nodes):
+        spots.setdefault((n.pos, n.layer), []).append(i)
+    coords = {}
+    for (pos, layer), idxs in spots.items():
+        idxs.sort(key=lambda i: -abs(g.nodes[i].attribution))
+        for k, i in enumerate(idxs):
+            coords[i] = (xpos[pos] + 0.16 * (k - (len(idxs) - 1) / 2), ypos[layer])
     for u, v, w in g.edges:
-        a, b = g.nodes[u], g.nodes[v]
+        (x1, y1), (x2, y2) = coords[u], coords[v]
         ax.plot(
-            [xpos[a.pos], xpos[b.pos]],
-            [ypos[a.layer], ypos[b.layer]],
+            [x1, x2],
+            [y1, y2],
             color=POS_C if w > 0 else NEG_C,
-            alpha=0.25 + 0.6 * abs(w) / wmax,
+            alpha=0.2 + 0.6 * abs(w) / wmax,
             lw=0.6 + 2.4 * abs(w) / wmax,
             zorder=1,
         )
-    amax = max(abs(n.attribution) for n in g.nodes)
-    for n in g.nodes:
+    for i, n in enumerate(g.nodes):
+        x, y = coords[i]
         ax.scatter(
-            xpos[n.pos],
-            ypos[n.layer],
-            s=60 + 500 * abs(n.attribution) / amax,
+            x,
+            y,
+            s=50 + 450 * abs(n.attribution) / amax,
             color=POS_C if n.attribution > 0 else NEG_C,
             edgecolor=SURFACE,
-            lw=2,
+            lw=1.5,
             zorder=2,
         )
+    for (pos, layer), idxs in spots.items():
+        top = g.nodes[idxs[0]]
+        extra = f" +{len(idxs) - 1}" if len(idxs) > 1 else ""
         ax.annotate(
-            f"{n.feature}",
-            (xpos[n.pos], ypos[n.layer]),
-            xytext=(0, 9),
+            f"{top.feature}{extra}",
+            (xpos[pos], ypos[layer]),
+            xytext=(0, 11),
             textcoords="offset points",
             ha="center",
             fontsize=7.5,
@@ -199,6 +213,8 @@ def main() -> None:
                     "job_id": case.job_id,
                     "metric": g.metric,
                     "meta": g.meta,
+                    "tokens": g.tokens,
+                    "hint_positions": sorted(hp),
                     "nodes": [asdict(n) for n in g.nodes],
                     "edges": g.edges,
                 },
