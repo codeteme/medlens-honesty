@@ -150,6 +150,14 @@ def main() -> None:
     parser.add_argument("--config", default="configs/phase2.yaml")
     parser.add_argument("--n-diff", type=int, default=12)
     parser.add_argument("--n-cue", type=int, default=3)
+    parser.add_argument(
+        "--attr-run",
+        type=Path,
+        default=None,
+        help="phase2_attr_rank run: also label its top hint-token features",
+    )
+    parser.add_argument("--n-attr", type=int, default=5, help="per layer, from --attr-run")
+    parser.add_argument("--attr-layers", type=int, nargs="+", default=[17, 22])
     parser.add_argument("--n-hint-questions", type=int, default=60)
     parser.add_argument("--n-other", type=int, default=40)
     args = parser.parse_args()
@@ -170,6 +178,18 @@ def main() -> None:
         for r in cue_pick.itertuples()
         if (int(r.layer), int(r.feature)) not in {(L, f) for _, L, f in feats}
     ]
+    if args.attr_run:
+        at = pd.read_csv(args.attr_run / "attribution_features.csv")
+        at = at[(at.position == "hint") & at.layer.isin(args.attr_layers)]
+        seen = {(L, f) for _, L, f in feats}
+        for r in (
+            at.sort_values("mean_attribution", ascending=False)
+            .groupby("layer")
+            .head(args.n_attr)
+            .itertuples()
+        ):
+            if (int(r.layer), int(r.feature)) not in seen:
+                feats.append(("causal:hint", int(r.layer), int(r.feature)))
     by_layer: dict[int, list[int]] = {}
     for _, L, f in feats:
         by_layer.setdefault(L, []).append(f)
