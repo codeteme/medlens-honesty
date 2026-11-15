@@ -22,6 +22,11 @@ Research project for the Duke Explainable AI final project, built across several
 - At the start of Phase 1, benchmark batched 4B generation before launching large runs.
 - The Tinker key works. Its model list (checked 2026-11-14) has 38 models and no Gemma or MedGemma. `openai/gpt-oss-20b` and `-120b` are available; it is untested whether Tinker returns their raw reasoning.
 - `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` and `GOOGLE_API_KEY` are still empty.
+- **Course TPU (added in Phase 1):** start sessions with `ece661 compute start --shape v6e-1 --hours N`. It costs about $1.35/h from the group's shared budget, so ask before starting. `vllm-tpu==0.33.0` runs MedGemma 4B at about 4,600 tokens/sec, against 38 tokens/sec batched on the Mac.
+  - The TPU gives *nearly* the same outputs as the Mac: 88.8% same answers on 500 prompts, and 99.4% teacher-forced token agreement versus 99.7% for the Mac's own answers.
+  - Never mix devices within one comparison.
+  - Phase 2+ re-verifies TPU-labeled cases on the Mac (HF), where the hooks are.
+  - Delete the HF token from the machine and stop the session when done.
 
 **Tools and sources:**
 - Gemma Scope 2 (Google DeepMind, Dec 2025): SAEs and transcoders for Gemma 3. The SAELens release names use `-res`, `-transcoders`, `-mlp`, `-att` and their `-all` variants (not `-resid_post`). The 4B subset layers are 9, 17, 22 and 29. Download only `params.safetensors`, not `examples.safetensors`.
