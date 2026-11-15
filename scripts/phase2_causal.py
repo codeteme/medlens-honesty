@@ -33,7 +33,7 @@ from medlens.config import load_config
 from medlens.data.loaders import medqa_test_not_in_mpib
 from medlens.eval.answers import extract_answer
 from medlens.eval.stats import bootstrap_ci, mcnemar_exact, wilson_interval
-from medlens.interp.features import POSITIONS, capture
+from medlens.interp.features import POSITIONS, capture, prompt_positions
 from medlens.interp.interventions import scale_features
 from medlens.interp.sae_eval import load_sae
 from medlens.models.hf_local import HFLocalModel
@@ -43,7 +43,10 @@ logger = logging.getLogger("phase2_causal")
 
 
 def pick_features(analyze_run: Path, layer: int, position: str, k: int) -> list[int]:
-    d = pd.read_csv(analyze_run / "differential_features.csv")
+    """Top-k features from differential_features.csv, or from attribution_features.csv when
+    `analyze_run` is a phase2_attr_rank run (same columns; `auroc` holds the score)."""
+    f = analyze_run / "differential_features.csv"
+    d = pd.read_csv(f if f.exists() else analyze_run / "attribution_features.csv")
     d = d[(d.layer == layer) & (d.position == position) & (d.framings_with_positive_diff == 4)]
     return d.sort_values("auroc", ascending=False).feature.head(k).astype(int).tolist()
 
@@ -113,14 +116,20 @@ def readout_mode(args, cfg, run_dir: Path) -> dict:
     logger.info("feature sets: %s", sets)
 
     def run(jobs, feats):
-        hook = (
-            {(args.layer, "resid_post"): scale_features(sae, feats, args.factor)} if feats else None
-        )
         out = []
         for j in jobs:
+            msgs = build_messages(j["item"], j["cond"])
+            hook = None
+            if feats:
+                pos = prompt_positions(model, msgs, j["cond"].cue_text())[args.region]
+                hook = {
+                    (args.layer, "resid_post"): scale_features(
+                        sae, feats, args.factor, positions=pos
+                    )
+                }
             cap = capture(
                 model,
-                build_messages(j["item"], j["cond"]),
+                msgs,
                 "".join(j["item"].options),
                 [args.layer],
                 j["cond"].cue_text(),
@@ -261,7 +270,13 @@ def main() -> None:
     parser.add_argument("analyze_run", type=Path)
     parser.add_argument("--config", default="configs/phase2.yaml")
     parser.add_argument("--layer", type=int, required=True)
-    parser.add_argument("--position", default="gen_start", choices=list(POSITIONS[:2]))
+    parser.add_argument("--position", default="gen_start", choices=["gen_start", "final", "hint"])
+    parser.add_argument(
+        "--region",
+        default="all",
+        choices=["all", "hint", "final"],
+        help="token positions where features are scaled (readout mode)",
+    )
     parser.add_argument("--k", type=int, nargs="+", default=[10])
     parser.add_argument("--factor", type=float, default=0.0)
     parser.add_argument("--n", type=int, default=100)

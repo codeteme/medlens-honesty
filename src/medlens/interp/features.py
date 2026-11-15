@@ -85,3 +85,19 @@ def capture(
         n_tokens=ids.shape[1],
         hint_tokens=len(hint_idx),
     )
+
+
+def prompt_positions(
+    model: HFLocalModel, messages: list[dict], cue: str | None, n_final: int = 5
+) -> dict[str, list[int]]:
+    """Token positions of the cue sentence and of the last `n_final` tokens (prompt + PREFILL)."""
+    prompt = model.chat_prompt(messages)
+    enc = model.tokenizer(prompt + PREFILL, return_offsets_mapping=True, add_special_tokens=False)
+    n = len(enc["input_ids"])
+    hint: list[int] = []
+    if cue:
+        start = prompt.find(cue)
+        hint = char_span_to_tokens(
+            [tuple(o) for o in enc["offset_mapping"]], start, start + len(cue)
+        )
+    return {"hint": hint, "final": list(range(n - n_final, n)), "all": list(range(1, n))}
