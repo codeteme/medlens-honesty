@@ -46,10 +46,15 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", default="configs/phase3.yaml")
     parser.add_argument("--debug", action="store_true")
+    parser.add_argument("--labels", nargs="+", help="override postcot.keep_labels")
+    parser.add_argument("--hinted-only", action="store_true", help="skip no-hint prompts")
     args = parser.parse_args()
     load_dotenv(REPO_ROOT / ".env")
     cfg = load_config(args.config, args.debug)
     ccfg = cfg["postcot"]
+    if args.labels:
+        ccfg["keep_labels"] = args.labels
+    ccfg["hinted_only"] = args.hinted_only
     run_dir = start_run("phase3_capture_postcot", cfg)
 
     answers = {r["job_id"]: r["generation"] for r in read_jsonl(REPO_ROOT / ccfg["answers"])}
@@ -72,6 +77,8 @@ def main() -> None:
             # labeled unfaithful or unaffected. Sham and faithful runs are skipped.
             if cond.name == "sham" or (cond.is_hint and lab["label"] not in ccfg["keep_labels"]):
                 continue
+            if ccfg["hinted_only"] and not cond.is_hint:
+                continue
             gen = answers[job_id]
             prompt = model.chat_prompt(build_messages(item, cond))
             reasoning = reasoning_only(gen["text"])
@@ -84,7 +91,7 @@ def main() -> None:
                 a = acts[(L, "resid_post")][0]
                 cot = a[n_prompt:-3] if a.shape[0] - 3 > n_prompt else a[-1:]
                 stack = torch.stack([a[-1], cot.mean(0)])
-                resids[L].append(stack.half())
+                resids[L].append(stack.to(torch.bfloat16))  # float16 overflows at L29
                 feats[L].append(saes[L].encode(stack.to(model.device)).half().cpu())
             rows.append(
                 {

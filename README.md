@@ -12,7 +12,7 @@ showing clinicians a warning helps them decide when to trust the model.
 - **Optional outside check:** Qwen 27B (via Tinker), inputs and outputs only, at the end.
 
 This is a Duke Explainable AI final project. It is built in phases; see `reports/` for each
-phase's results. **Status: Phase 2 complete (see `reports/phase1.md` and `reports/phase2.md`).**
+phase's results. **Status: Phase 3 complete (see `reports/phase1.md` to `reports/phase3.md`).**
 
 **Phase 1 headline:** across 375 MedQA questions, MedGemma 4B moved to a hinted answer in
 912 eligible runs, and its written reasoning mentioned the hint in only 30 of them (3.3%).
@@ -21,6 +21,12 @@ phase's results. **Status: Phase 2 complete (see `reports/phase1.md` and `report
 ("multiple-choice answer letter" features on the hint's own tokens at layers 17/22), not as
 an authority signal. Removing 10 of these features weakens hint-following when the model
 answers immediately (87% to 75%) but not when it reasons step by step first.
+
+**Phase 3 headline:** a simple probe on the model's activations, never told what the hint was,
+flags silently followed hints with AUROC 0.98 once the model has reasoned (0.87 before it
+reasons). It rarely fires on prompts with no hint (under 1%), and it works on hint types and
+specialties it wasn't trained on. Text-only detectors score 0.56–0.72. Caveat: the probe
+detects *following* the hint, not *hiding* it; it fires on most runs that admitted the hint too.
 
 ## Setup
 
@@ -67,6 +73,9 @@ uv run python scripts/phase1_probes.py analyze --generations cache/tpu/out_stage
 uv run python scripts/phase1_judge_agreement.py outputs/phase1_hints/<run>/ --annotator llm_A=llm_labels_A.csv --annotator llm_B=llm_labels_B.csv
 uv run python scripts/phase1_report_tables.py outputs/phase1_hints/<run>/ outputs/phase1_probes/<run>/
 ```
+
+Phase 2 and Phase 3 reproduction steps are at the end of `reports/phase2.md` and
+`reports/phase3.md`.
 
 Each run writes to `outputs/<script>/<timestamp>/` with the exact config, the git commit,
 package versions, logs and results. `outputs/` and `cache/` are not committed.

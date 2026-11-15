@@ -61,9 +61,18 @@ def load_inputs(pre_run: Path, post_run: Path):
     return pre_idx, post_idx, tensors
 
 
+def finite_columns(t) -> np.ndarray:
+    """Channels finite in every stored row. Layer-29 residuals were saved as float16 and one
+    "massive activation" channel (443) overflows to inf in some rows; it is dropped (label-free)."""
+    return np.flatnonzero(np.isfinite(t.float().numpy()).all(axis=(0, 1)))
+
+
 def matrix(tensors, stage, kind, L, pos_i, rows) -> np.ndarray:
-    X = tensors[(stage, kind, L)][rows, pos_i].float().numpy()
-    return np.log1p(np.maximum(X, 0)) if kind == "sae" else X
+    t = tensors[(stage, kind, L)]
+    X = t[rows, pos_i].float().numpy()
+    if kind == "sae":
+        return np.log1p(np.maximum(X, 0))
+    return X[:, finite_columns(t)]
 
 
 def active_columns(X: np.ndarray, frac: float = 0.01) -> np.ndarray:

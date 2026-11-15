@@ -67,6 +67,24 @@ Research project for the Duke Explainable AI final project, built across several
   - Steering for cue acknowledgment: arXiv 2607.29062.
   - Activation-based unfaithfulness detectors: VERITAS (2610.23275), arXiv 2605.25603. Phase 3 must position itself against these.
 
+**Phase 3 results to build on (2026-11-15, see reports/phase3.md):**
+- Hint-blind linear probes (never see the hint text or letter), 5 folds grouped by question.
+  - After reasoning (Phase 1 TPU reasoning teacher-forced on the Mac, read at the appended
+    "Final answer:"), raw resid L22: AUROC 0.982, within-hint-type 0.978, ECE 0.015, no-hint
+    false alarms 0.8% at 80% recall. Held-out hint types 0.98–0.99; held-out specialties 0.98–1.00.
+  - Forced "Final answer:" before reasoning (Phase 2 capture), raw resid L22: AUROC 0.871, within type 0.821.
+  - End-of-prompt probe (0.76) mostly reads hint type and question: question-only control 0.705.
+  - Baselines: hint type alone 0.709; LLM judge (Qwen 27B, k=3) 0.717; TF-IDF 0.564; readout (uses letter) 0.893.
+  - Raw activations beat SAE features at every layer and position.
+- **The probe detects hint-following, not silence:** it flags 76% of the 21 runs that followed AND
+  admitted the hint. Pair it with a text acknowledgment check for an unfaithfulness detector.
+- Saved probes: `outputs/phase3_probes/20261115-153757/probe_{pre,post}.joblib`. Post capture:
+  `outputs/phase3_capture_postcot/20261115-142843`.
+- Captures before 2026-11-15 saved residuals as float16; channel 443 at L29 overflows to inf
+  (probes drop non-finite channels). Captures now save bfloat16.
+- For Phase 4: use the L22 post-reasoning probe as a cheap outcome measure, and try its weight
+  vector as a steering direction; run it on MPIB injection cases for the injection link.
+
 **Main hypothesis (Phase 4):** the same internal features that make 4B follow hints without admitting it also make it vulnerable to prompt injection.
 
 ## Phases

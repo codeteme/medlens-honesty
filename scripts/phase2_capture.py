@@ -7,7 +7,8 @@ stores residual activations and Gemma Scope 2 (pt, 16k) SAE features at three po
 Outputs (in the run directory):
   readout.parquet                one row per prompt: letter log-probs, Phase 1 label, etc.
   features_L{layer}.safetensors  float16 [n_prompts, 3 positions, 16384] SAE activations
-  resid_L{layer}.safetensors     float16 [n_prompts, 3 positions, d_model] residual stream
+  resid_L{layer}.safetensors     bfloat16 [n_prompts, 3 positions, d_model] residual stream
+                                 (older runs: float16; channel 443 at L29 overflows)
 """
 
 from __future__ import annotations
@@ -89,7 +90,7 @@ def main() -> None:
                         for pos in POSITIONS
                     ]
                 )
-                resids[layer].append(stack.half())
+                resids[layer].append(stack.to(torch.bfloat16))  # float16 overflows at L29
                 feats[layer].append(saes[layer].encode(stack.to(model.device)).half().cpu())
         if (qi + 1) % 10 == 0 or qi == len(items) - 1:
             logger.info("questions %d/%d (%.0fs)", qi + 1, len(items), time.time() - t0)
