@@ -57,8 +57,11 @@ run's answer (both parsed).
   hints, `probe_post.joblib`) scores attacked runs. H1 holds if its AUROC for moved vs not
   moved has a 95% bootstrap CI above 0.5 **and** is higher than the same probe's AUROC computed
   on the clean run of each case (so it isn't just reading question difficulty).
-- **H2, the fix transfers.** The fix chosen in Part A, applied to attacked prompts, lowers the
-  moved rate (paired exact McNemar, p < 0.05).
+- **H2, the fix transfers.** The fix chosen in Part A lowers the moved rate (paired exact
+  McNemar, p < 0.05). *Clarified 2026-11-15, before any MPIB run:* the fix is applied to both
+  the clean and the attacked prompt, and "moved under the fix" compares those two answers, so a
+  fix that merely scrambles answers cannot look like a success. The rate measured against the
+  clean baseline answer is reported as a secondary number.
 - **H3, descriptive only.** Activation of the Phase 2 causal SAE features (layer 17: 1894,
   12508; layer 22: 2710, 146) on the embedded instruction's tokens, versus the question's own
   tokens.
