@@ -48,8 +48,10 @@ class TinkerModel:
             enable_thinking=self.enable_thinking,
         )
 
-    def _request(self, messages: list[Message], max_new_tokens: int) -> dict[str, Any]:
-        return {
+    def _request(
+        self, messages: list[Message], max_new_tokens: int, seed: int | None = None
+    ) -> dict[str, Any]:
+        req = {
             "provider": "tinker",
             "model": self.model_id,
             "messages": messages,
@@ -57,26 +59,35 @@ class TinkerModel:
             "temperature": self.temperature,
             "enable_thinking": self.enable_thinking,
         }
+        if seed is not None:  # distinct samples at temperature > 0 get distinct cache keys
+            req["seed"] = seed
+        return req
 
     def generate(self, messages: list[Message], max_new_tokens: int = 1024) -> Generation:
         return self.generate_many([messages], max_new_tokens)[0]
 
     def generate_many(
-        self, batch: list[list[Message]], max_new_tokens: int = 1024, chunk: int = 256
+        self,
+        batch: list[list[Message]],
+        max_new_tokens: int = 1024,
+        chunk: int = 256,
+        seeds: list[int | None] | None = None,
     ) -> list[Generation]:
         """Submit uncached requests in chunks of `chunk` (no documented rate limits, so stay
         modest), collecting each chunk before submitting the next. Results keep input order."""
         if len(batch) > chunk:
             out: list[Generation] = []
             for start in range(0, len(batch), chunk):
-                out += self.generate_many(batch[start : start + chunk], max_new_tokens, chunk)
+                s = None if seeds is None else seeds[start : start + chunk]
+                out += self.generate_many(batch[start : start + chunk], max_new_tokens, chunk, s)
             return out
         from tinker import types
 
         results: list[Generation | None] = [None] * len(batch)
         pending = []
         for i, messages in enumerate(batch):
-            request = self._request(messages, max_new_tokens)
+            seed = None if seeds is None else seeds[i]
+            request = self._request(messages, max_new_tokens, seed)
             if self.cache is not None and (hit := self.cache.get(request)) is not None:
                 gen = Generation.from_dict(hit)
                 gen.cached = True
@@ -88,7 +99,7 @@ class TinkerModel:
                 prompt=types.ModelInput.from_ints(ids),
                 num_samples=1,
                 sampling_params=types.SamplingParams(
-                    max_tokens=max_new_tokens, temperature=self.temperature
+                    max_tokens=max_new_tokens, temperature=self.temperature, seed=seed
                 ),
             )
             pending.append((i, request, len(ids), future))
