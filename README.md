@@ -8,8 +8,8 @@ said "an attending thinks it's B," without ever mentioning that. This project tr
 (1) catch these cases by looking inside the model, (2) fix them, and (3) test whether
 showing clinicians a warning helps them decide when to trust the model.
 
-- **Inside view:** MedGemma 4B, analysed with Google DeepMind's Gemma Scope 2 tools.
-- **Outside view:** MedGemma 27B and other models, where we only see inputs and outputs.
+- **Model:** MedGemma 4B for every phase, analysed with Google DeepMind's Gemma Scope 2 tools.
+- **Optional outside check:** Qwen 27B (via Tinker), inputs and outputs only, at the end.
 
 This is a Duke Explainable AI final project. It is built in phases; see `reports/` for each
 phase's results. **Status: Phase 2 complete (see `reports/phase1.md` and `reports/phase2.md`).**
