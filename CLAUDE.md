@@ -53,6 +53,20 @@ Research project for the Duke Explainable AI final project, built across several
 - **Closest outside work:** Linzmayer & Elhadad, arXiv 2609.02754 (ML4H 2026 submission). Their "mechanism" analysis is text resampling (truncating and transplanting the trace), not internals. No Gemma models, no activation-based detector, no interventions, and no code link found.
 - **Course policy:** the user confirmed (2026-11-14) that the final project may build on the SSO assignment.
 
+**Phase 2 results to build on (2026-11-14, see reports/phase2.md):**
+- Captured features and residuals for 375 questions × 6 conditions are in `outputs/phase2_capture/20261114-194828`: `resid_L{9,17,22,29}`, `features_L*`, and `readout.parquet`. Phase 3 should reuse them.
+- The one-pass readout (prefill "Final answer:", read P(hinted letter)) predicts Phase 1 unfaithful vs unaffected with AUROC 0.83–0.91. It is the baseline for Phase 3.
+- **Causal features are answer-letter / option-label features on the hint tokens:** for example 22/2710, 17/1894, 17/12508, 22/146 (pt 16k residual SAEs).
+  - Removing the top 10 at layer 17 on the hint tokens changed the readout's log-P(hinted letter) by −0.83, and following fell from 87% to 75%.
+  - In full step-by-step regeneration the decisions did NOT change (35/40 before and after).
+  - Correlation-ranked features at the answer point are not causal (−0.07).
+  - No authority features were found.
+- **For Phase 4:** single-layer removal of 10 features is too weak for step-by-step answers. Try several layers at once, more features, negative steering, or attention masking to the hint's letter. Mac memory: call `torch.mps.empty_cache()` between cases (swap thrashing happened twice).
+- **Related work found in Phase 2:**
+  - Ayadi & Hautli-Janisz, ACL 2026 SRW (MedGemma-27B, Gemma Scope 2, False Consensus hint, letter-only answers): feature ablation gave 0% mitigation, and global steering at layer 29 fixed 21.9% of flips. GitHub code is in the paper.
+  - Steering for cue acknowledgment: arXiv 2607.29062.
+  - Activation-based unfaithfulness detectors: VERITAS (2610.23275), arXiv 2605.25603. Phase 3 must position itself against these.
+
 **Main hypothesis (Phase 4):** the same internal features that make 4B follow hints without admitting it also make it vulnerable to prompt injection.
 
 ## Phases

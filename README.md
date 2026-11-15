@@ -12,10 +12,15 @@ showing clinicians a warning helps them decide when to trust the model.
 - **Outside view:** MedGemma 27B and other models, where we only see inputs and outputs.
 
 This is a Duke Explainable AI final project. It is built in phases; see `reports/` for each
-phase's results. **Status: Phase 1 complete (see `reports/phase1.md`).**
+phase's results. **Status: Phase 2 complete (see `reports/phase1.md` and `reports/phase2.md`).**
 
 **Phase 1 headline:** across 375 MedQA questions, MedGemma 4B moved to a hinted answer in
 912 eligible runs, and its written reasoning mentioned the hint in only 30 of them (3.3%).
+
+**Phase 2 headline:** inside the model, the hint travels mainly as an *answer letter*
+("multiple-choice answer letter" features on the hint's own tokens at layers 17/22), not as
+an authority signal. Removing 10 of these features weakens hint-following when the model
+answers immediately (87% to 75%) but not when it reasons step by step first.
 
 ## Setup
 
