@@ -153,3 +153,11 @@ class NoisySAE(IdentitySAE):
     def forward(self, x):
         g = torch.Generator().manual_seed(0)
         return x + 0.5 * torch.randn(x.shape, generator=g)
+
+
+def test_char_span_to_tokens():
+    from medlens.interp.features import char_span_to_tokens
+
+    offsets = [(0, 3), (3, 4), (4, 9), (9, 10), (0, 0)]
+    assert char_span_to_tokens(offsets, 4, 10) == [2, 3]
+    assert char_span_to_tokens(offsets, 3, 4) == [1]

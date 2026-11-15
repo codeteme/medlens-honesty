@@ -1,0 +1,17 @@
+# Phase 2: mechanistic analysis of silent hint-following in MedGemma 4B (Mac, HF transformers).
+seed: 0
+model_id: google/medgemma-4b-it
+device: auto
+
+capture:
+  # Phase 1 labels from the full TPU run; Phase 2 re-checks behaviour on the Mac.
+  phase1_labels: outputs/phase1_hints/20261114-193610/labels.parquet
+  n_questions: 375
+  framings: [metadata, explicit, authority, patient]   # wrong-answer hints, plus none + sham
+  layers: [9, 17, 22, 29]
+  sae_release: gemma-scope-2-4b-pt-res                 # base-model suite (best fit in Phase 0)
+  sae_id: "layer_{layer}_width_16k_l0_medium"          # = Neuronpedia gemma-3-4b/{layer}-gemmascope-2-res-16k
+
+debug:
+  capture:
+    n_questions: 3
