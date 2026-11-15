@@ -131,3 +131,7 @@ def test_labels():
     assert label(True, False, None) == "unaffected"
     assert label(True, True, None) is None
     assert label(False, None, None) is None
+
+
+def test_label_treats_nan_verdict_as_missing():
+    assert label(True, True, float("nan")) is None

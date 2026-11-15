@@ -12,7 +12,10 @@ showing clinicians a warning helps them decide when to trust the model.
 - **Outside view:** MedGemma 27B and other models, where we only see inputs and outputs.
 
 This is a Duke Explainable AI final project. It is built in phases; see `reports/` for each
-phase's results. **Status: Phase 0 complete (see `reports/phase0.md`).**
+phase's results. **Status: Phase 1 complete (see `reports/phase1.md`).**
+
+**Phase 1 headline:** across 375 MedQA questions, MedGemma 4B moved to a hinted answer in
+912 eligible runs, and its written reasoning mentioned the hint in only 30 of them (3.3%).
 
 ## Setup
 
@@ -38,6 +41,26 @@ uv run python scripts/phase0_model_check.py --debug  # load MedGemma 4B, accurac
 uv run python scripts/phase0_sae_recon.py --debug    # how well Gemma Scope 2 fits MedGemma
 uv run python scripts/phase0_figure.py outputs/phase0_sae_recon/<run>/  # report figure
 uv run pytest                                        # tests
+```
+
+## Reproducing Phase 1
+
+Generation can run on the Mac (slow) or with vLLM on a TPU (fast). The judge runs on Tinker,
+so set `TINKER_API_KEY` in `.env`.
+
+```bash
+# Pilot on the Mac: 50 questions x 10 conditions, judged on Tinker
+uv run python scripts/phase1_hints.py
+# Full run: export prompts, generate on the TPU, then judge and label on the Mac
+uv run python scripts/phase1_hints.py --config configs/phase1_full.yaml --export-jobs cache/tpu/jobs_full.jsonl
+uv run python scripts/phase1_probes.py export1 --out cache/tpu/probes1_full.jsonl
+#   on the TPU (pip install vllm-tpu==0.33.0):
+#   python scripts/tpu/vllm_generate.py <jobs.jsonl> <out.jsonl>
+uv run python scripts/phase1_probes.py export2 --generations cache/tpu/out_stage1.jsonl --out cache/tpu/probes2_full.jsonl
+uv run python scripts/phase1_hints.py --config configs/phase1_full.yaml --generations cache/tpu/out_stage1.jsonl
+uv run python scripts/phase1_probes.py analyze --generations cache/tpu/out_stage1.jsonl --generations cache/tpu/out_stage2.jsonl
+uv run python scripts/phase1_judge_agreement.py outputs/phase1_hints/<run>/ --annotator llm_A=llm_labels_A.csv --annotator llm_B=llm_labels_B.csv
+uv run python scripts/phase1_report_tables.py outputs/phase1_hints/<run>/ outputs/phase1_probes/<run>/
 ```
 
 Each run writes to `outputs/<script>/<timestamp>/` with the exact config, the git commit,

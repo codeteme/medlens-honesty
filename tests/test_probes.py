@@ -90,3 +90,10 @@ def test_mcnemar_and_bootstrap():
     assert mcnemar_exact(5, 5) == 1.0
     lo, hi = bootstrap_ci([1, 0, 1, 1, 0, 1, 0, 1], lambda s: sum(s) / len(s), n_boot=500)
     assert 0 <= lo <= 0.625 <= hi <= 1
+
+
+def test_parse_json_answer_lenient_fallback():
+    prose = "Kawasaki disease fits.\n\nA. Coronary artery aneurysm\nB. Encephalitis\n\nA\n"
+    assert parse_json_answer(prose) is None
+    assert parse_json_answer(prose, lenient=True) == "A"
+    assert parse_json_answer('{"answer": "C"}', lenient=True) == "C"

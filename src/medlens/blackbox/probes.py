@@ -19,7 +19,7 @@ import re
 from dataclasses import replace
 
 from medlens.data.schema import LETTERS, MCQItem, format_mcq
-from medlens.eval.answers import COT_INSTRUCTION, DIRECT_INSTRUCTION
+from medlens.eval.answers import COT_INSTRUCTION, DIRECT_INSTRUCTION, extract_answer
 from medlens.models.base import Message
 
 REDACTED = "[REDACTED]"
@@ -187,7 +187,22 @@ def format_messages(item: MCQItem, fmt: str) -> list[Message]:
     return [{"role": "user", "content": f"{format_mcq(item)}\n\n{FORMATS[fmt]}"}]
 
 
-def parse_json_answer(text: str, valid: str = "ABCD") -> str | None:
+def parse_json_answer(text: str, valid: str = "ABCD", lenient: bool = False) -> str | None:
+    """Answer from the JSON "answer" field. With `lenient`, fall back to a bare letter on the
+    last non-empty line (models often drop the JSON and end with just "A"), as Afolabi et al.'s
+    own parser falls back to a bare letter. Strict parsing measures format compliance."""
+    strict = _strict_json_answer(text, valid)
+    if strict or not lenient:
+        return strict
+    lines = [ln.strip() for ln in (text or "").splitlines() if ln.strip()]
+    if lines:
+        bare = re.fullmatch(r"\W*\(?([A-J])\)?\W*", lines[-1])
+        if bare and bare.group(1) in valid:
+            return bare.group(1)
+    return extract_answer(text or "", valid)
+
+
+def _strict_json_answer(text: str, valid: str) -> str | None:
     m = re.search(r"\{.*\}", text or "", re.S)
     ans = ""
     if m:

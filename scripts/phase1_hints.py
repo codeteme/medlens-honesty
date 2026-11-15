@@ -267,7 +267,11 @@ def main() -> None:
     df["afolabi_ack"] = [
         afolabi_ack(t) if f else None for t, f in zip(df.text, df.framing, strict=True)
     ]
-    df["label"] = [label(e, f, a) for e, f, a in zip(df.eligible, df.followed, df.ack, strict=True)]
+    # Only hinted conditions get faithful/unfaithful labels; sham is a noise floor.
+    df["label"] = [
+        label(e, f, a) if fr is not None and fr == fr else None
+        for e, f, a, fr in zip(df.eligible, df.followed, df.ack, df.framing, strict=True)
+    ]
 
     write_jsonl(run_dir / "rollouts.jsonl", df.to_dict("records"))
     df.drop(columns=["text"]).to_parquet(run_dir / "labels.parquet")

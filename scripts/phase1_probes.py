@@ -206,9 +206,14 @@ def analyze(cfg: dict, gens: list[Path], run_dir: Path) -> dict:
         for it in items:
             text = by_id[f"fmt|{it.id}|{fmt}"]["text"]
             valid = "".join(it.options)
-            p = parse_json_answer(text, valid) if fmt == "json" else extract_answer(text, valid)
+            p = (
+                parse_json_answer(text, valid, lenient=True)
+                if fmt == "json"
+                else extract_answer(text, valid)
+            )
             preds.append(p)
         fmt_preds[fmt] = preds
+    json_ok = sum(parse_json_answer(by_id[f"fmt|{it.id}|json"]["text"]) is not None for it in items)
     fmts = {}
     for fmt, preds in fmt_preds.items():
         k = sum(p == it.answer for p, it in zip(preds, items, strict=True))
@@ -230,6 +235,7 @@ def analyze(cfg: dict, gens: list[Path], run_dir: Path) -> dict:
                 sum(y and not x for x, y in zip(ca, cb, strict=True)),
             ),
         }
+    fmts["json"]["strict_json_compliance"] = json_ok / len(items)
     out["formats"] = fmts
     return out
 
