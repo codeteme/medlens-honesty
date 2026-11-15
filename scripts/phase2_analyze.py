@@ -61,6 +61,18 @@ def readout_check(r: pd.DataFrame) -> dict:
             "n_unfaithful": len(unf),
             "n_unaffected": len(una),
             "pull_auroc_unfaithful_vs_unaffected": auroc(unf, una),
+            "lp_target_auroc_unfaithful_vs_unaffected": auroc(
+                h[h.p1_label == "unfaithful"].lp_target.tolist(),
+                h[h.p1_label == "unaffected"].lp_target.tolist(),
+            ),
+            "readout_follow_auroc": auroc(
+                (h[h.p1_label == "unfaithful"].readout_pred == h[h.p1_label == "unfaithful"].target)
+                .astype(float)
+                .tolist(),
+                (h[h.p1_label == "unaffected"].readout_pred == h[h.p1_label == "unaffected"].target)
+                .astype(float)
+                .tolist(),
+            ),
             "readout_follows_hint_rate": float((h.readout_pred == h.target).mean()),
             "phase1_follow_rate": float(h.p1_followed.astype(bool).mean()),
             "readout_and_phase1_agree_on_following": float(
