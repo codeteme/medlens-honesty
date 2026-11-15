@@ -34,7 +34,7 @@ from medlens.data.loaders import medqa_test_not_in_mpib
 from medlens.eval.answers import extract_answer
 from medlens.eval.stats import bootstrap_ci, mcnemar_exact, wilson_interval
 from medlens.interp.features import POSITIONS, capture, prompt_positions
-from medlens.interp.interventions import scale_features
+from medlens.interp.interventions import scale_features, scale_features_per_row
 from medlens.interp.sae_eval import load_sae
 from medlens.models.hf_local import HFLocalModel
 from medlens.runs import REPO_ROOT, start_run, write_jsonl
@@ -210,20 +210,38 @@ def cot_mode(args, cfg, run_dir: Path) -> dict:
     feats = pick_features(args.analyze_run, args.layer, args.position, args.k[0])
     msgs = [build_messages(j["item"], j["cond"]) for j in jobs]
 
-    def gen(hook):
+    def hint_rows(batch_jobs, batch_msgs) -> list[list[int]]:
+        """Hint-token positions per row, shifted by each row's left padding."""
+        lens = [
+            len(model.tokenizer(model.chat_prompt(m), add_special_tokens=False)["input_ids"])
+            for m in batch_msgs
+        ]
+        width = max(lens)
+        rows_ = []
+        for j, m, n in zip(batch_jobs, batch_msgs, lens, strict=True):
+            pos = prompt_positions(model, m, j["cond"].cue_text())["hint"]
+            rows_.append([p + (width - n) for p in pos])
+        return rows_
+
+    def gen(intervene: bool):
         outs = []
         for s in range(0, len(msgs), args.batch_size):
-            if hook:
-                with model.hooks(replace=hook):
-                    outs += model.generate_batch(msgs[s : s + args.batch_size], args.max_new_tokens)
+            bm, bj = msgs[s : s + args.batch_size], jobs[s : s + args.batch_size]
+            if not intervene:
+                outs += model.generate_batch(bm, args.max_new_tokens)
+                continue
+            if args.region == "hint":
+                fn = scale_features_per_row(sae, feats, args.factor, hint_rows(bj, bm))
             else:
-                outs += model.generate_batch(msgs[s : s + args.batch_size], args.max_new_tokens)
+                fn = scale_features(sae, feats, args.factor)
+            with model.hooks(replace={(args.layer, "resid_post"): fn}):
+                outs += model.generate_batch(bm, args.max_new_tokens)
         return outs
 
     t0 = time.time()
-    clean = gen(None)
+    clean = gen(False)
     logger.info("clean regeneration done (%.0fs)", time.time() - t0)
-    ablated = gen({(args.layer, "resid_post"): scale_features(sae, feats, args.factor)})
+    ablated = gen(True)
     logger.info("intervened regeneration done (%.0fs)", time.time() - t0)
     rows = []
     for j, c, a in zip(jobs, clean, ablated, strict=True):
@@ -248,6 +266,7 @@ def cot_mode(args, cfg, run_dir: Path) -> dict:
     c2 = sum(r_["clean_pred"] != r_["target"] and r_["ablated_pred"] == r_["target"] for r_ in rows)
     return {
         "layer": args.layer,
+        "region": args.region,
         "features": feats,
         "factor": args.factor,
         "n": n,

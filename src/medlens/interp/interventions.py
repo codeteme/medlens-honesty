@@ -42,3 +42,28 @@ def scale_features(
 
 def remove_features(sae: Any, features: list[int], start_pos: int = 0):
     return scale_features(sae, features, 0.0, start_pos)
+
+
+def scale_features_per_row(
+    sae: Any, features: list[int], factor: float, row_positions: list[list[int]]
+) -> Callable[[torch.Tensor], torch.Tensor]:
+    """Batched variant for left-padded generation: row r is changed only at row_positions[r]
+    (already shifted by that row's padding). Only the prompt pass is affected; later decoding
+    steps see one new token at a time and are left untouched."""
+    idx = torch.tensor(features, dtype=torch.long, device=sae.W_dec.device)
+    w_dec = sae.W_dec[idx]
+    need = max((max(p) for p in row_positions if p), default=-1)
+
+    def hook(x: torch.Tensor) -> torch.Tensor:
+        if x.shape[1] <= need:  # a decoding step, not the prompt pass
+            return x
+        out = x.clone()
+        for r, pos in enumerate(row_positions):
+            if not pos:
+                continue
+            xs = x[r, pos].float().to(sae.W_dec.device)
+            acts = sae.encode(xs)[..., idx]
+            out[r, pos] = (xs + (factor - 1.0) * (acts @ w_dec)).to(x.dtype).to(x.device)
+        return out
+
+    return hook

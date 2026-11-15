@@ -211,3 +211,16 @@ def test_attribution_splice_preserves_forward_and_gives_nonzero_attributions(tin
         grads = torch.autograd.grad(metric, [store[0], store[2]])
     assert torch.allclose(out.float(), clean, atol=1e-4)  # splice does not change the forward
     assert all(g.abs().sum() > 0 for g in grads)
+
+
+def test_scale_features_per_row_only_on_prompt_pass():
+    from medlens.interp.interventions import scale_features_per_row
+
+    sae = TinyLinearSAE(4)
+    x = torch.ones(2, 5, 4)
+    hook = scale_features_per_row(sae, [0], 0.0, [[1, 2], [4]])
+    out = hook(x)
+    assert out[0, 1, 0] == 0 and out[0, 2, 0] == 0 and out[0, 3, 0] == 1
+    assert out[1, 4, 0] == 0 and out[1, 1, 0] == 1
+    step = torch.ones(2, 1, 4)
+    assert torch.equal(hook(step), step)  # decoding step untouched
