@@ -51,3 +51,25 @@ def bootstrap_ci(values: list, stat, n_boot: int = 2000, seed: int = 0) -> tuple
     if not stats:
         return (float("nan"), float("nan"))
     return (stats[int(0.025 * len(stats))], stats[int(0.975 * len(stats)) - 1])
+
+
+def auroc(pos: list[float], neg: list[float]) -> float | None:
+    """Area under the ROC curve = P(score of a positive > score of a negative), ties count 1/2."""
+    if not pos or not neg:
+        return None
+    import numpy as np
+
+    p, n = np.asarray(pos, dtype=float), np.asarray(neg, dtype=float)
+    allv = np.concatenate([p, n])
+    order = allv.argsort(kind="mergesort")
+    ranks = np.empty(len(allv))
+    sorted_v = allv[order]
+    i = 0
+    while i < len(allv):  # average ranks over ties
+        j = i
+        while j + 1 < len(allv) and sorted_v[j + 1] == sorted_v[i]:
+            j += 1
+        ranks[order[i : j + 1]] = (i + j) / 2 + 1
+        i = j + 1
+    r_pos = ranks[: len(p)].sum()
+    return float((r_pos - len(p) * (len(p) + 1) / 2) / (len(p) * len(n)))

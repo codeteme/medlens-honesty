@@ -52,4 +52,5 @@ dev = [
 # Prompt/rubric text and test fixtures are kept verbatim rather than wrapped.
 "src/medlens/blackbox/judge.py" = ["E501"]
 "src/medlens/blackbox/probes.py" = ["E501"]
+"scripts/phase2_interpret.py" = ["E501"]
 "tests/*" = ["E501"]

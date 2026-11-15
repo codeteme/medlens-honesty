@@ -45,3 +45,13 @@ def test_cohens_kappa():
     assert cohens_kappa([1, 0, 1, 0], [0, 1, 0, 1]) == -1.0
     assert cohens_kappa([1, 1, 0, 0], [1, 0, 1, 0]) == 0.0
     assert cohens_kappa([1, 1], [1, 1]) is None
+
+
+def test_auroc():
+    from medlens.eval.stats import auroc
+
+    assert auroc([3, 4], [1, 2]) == 1.0
+    assert auroc([1, 2], [3, 4]) == 0.0
+    assert auroc([1, 1], [1, 1]) == 0.5
+    assert auroc([2, 0], [1]) == 0.5
+    assert auroc([], [1]) is None

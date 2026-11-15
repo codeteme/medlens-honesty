@@ -161,3 +161,53 @@ def test_char_span_to_tokens():
     offsets = [(0, 3), (3, 4), (4, 9), (9, 10), (0, 0)]
     assert char_span_to_tokens(offsets, 4, 10) == [2, 3]
     assert char_span_to_tokens(offsets, 3, 4) == [1]
+
+
+class TinyLinearSAE(torch.nn.Module):
+    """Exact SAE for testing: features are the coordinates themselves (ReLU)."""
+
+    def __init__(self, d: int):
+        super().__init__()
+        self.W_dec = torch.nn.Parameter(torch.eye(d))
+
+    def encode(self, x):
+        return torch.relu(x)
+
+
+def test_remove_and_scale_features_touch_only_chosen_coordinates():
+    from medlens.interp.interventions import remove_features, scale_features
+
+    sae = TinyLinearSAE(4)
+    x = torch.tensor([[[1.0, 2.0, -1.0, 3.0], [0.5, 0.0, 2.0, 1.0]]])
+    out = remove_features(sae, [1, 3])(x)
+    assert torch.allclose(out, torch.tensor([[[1.0, 0.0, -1.0, 0.0], [0.5, 0.0, 2.0, 0.0]]]))
+    doubled = scale_features(sae, [0], 2.0, start_pos=1)(x)
+    assert torch.allclose(doubled[0, 0], x[0, 0]) and doubled[0, 1, 0] == 1.0
+
+
+def test_attribution_splice_preserves_forward_and_gives_nonzero_attributions(tiny):
+    from medlens.interp.attribution import _splice_hooks
+
+    class LinearSAE(torch.nn.Module):
+        def __init__(self, d):
+            super().__init__()
+            g = torch.Generator().manual_seed(1)
+            self.W_enc = torch.nn.Parameter(torch.randn(d, 2 * d, generator=g) * 0.3)
+            self.W_dec = torch.nn.Parameter(torch.randn(2 * d, d, generator=g) * 0.3)
+
+        def encode(self, x):
+            return torch.relu(x @ self.W_enc)
+
+        def decode(self, a):
+            return a @ self.W_dec
+
+    saes = {0: LinearSAE(32), 2: LinearSAE(32)}
+    x = ids(8)
+    clean, _ = tiny.forward_logits(x)
+    store = {}
+    with torch.enable_grad(), tiny.hooks(replace=_splice_hooks(saes, store)):
+        out = tiny.model(input_ids=x).logits
+        metric = out[0, -1, 5] - out[0, -1, 7]
+        grads = torch.autograd.grad(metric, [store[0], store[2]])
+    assert torch.allclose(out.float(), clean, atol=1e-4)  # splice does not change the forward
+    assert all(g.abs().sum() > 0 for g in grads)
