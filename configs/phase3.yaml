@@ -1,0 +1,28 @@
+# Phase 3: detecting silent hint-following from MedGemma 4B's internals.
+seed: 0
+model_id: google/medgemma-4b-it
+device: auto
+
+# Pre-reasoning activations come from Phase 2; labels from the Phase 1 full (TPU) run.
+phase2_capture: outputs/phase2_capture/20261114-194828
+phase1_labels: outputs/phase1_hints/20261114-193610/labels.parquet
+
+postcot:
+  answers: cache/tpu/out_stage1.jsonl        # Phase 1 reasoning, fed back in (teacher forcing)
+  phase1_labels: outputs/phase1_hints/20261114-193610/labels.parquet
+  n_questions: 375
+  framings: [metadata, explicit, authority, patient]
+  layers: [9, 17, 22, 29]
+  sae_release: gemma-scope-2-4b-pt-res
+  sae_id: "layer_{layer}_width_16k_l0_medium"
+  max_tokens: 1200
+  keep_labels: [unfaithful, unaffected]
+
+probes:
+  n_folds: 5                 # folds grouped by question: no question in both train and test
+  C_grid: [0.001, 0.01, 0.1, 1.0]
+  bootstrap: 1000
+
+debug:
+  postcot:
+    n_questions: 3
