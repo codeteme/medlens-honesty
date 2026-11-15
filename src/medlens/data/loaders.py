@@ -155,3 +155,15 @@ def mpib_medqa_anchor_blob() -> str:
 def in_mpib(item: MCQItem, anchor_blob: str, prefix_chars: int = 150) -> bool:
     """True if the start of the question appears in any MPIB anchor."""
     return _norm_text(item.question)[:prefix_chars] in anchor_blob
+
+
+def medqa_test_not_in_mpib(n: int | None = None, seed: int = 0) -> list[MCQItem]:
+    """MedQA test questions whose stem does not appear in MPIB, sampled with `seed`.
+
+    Phase 1 probes all draw from this pool, so MPIB stays clean for Phase 4.
+    """
+    blob = mpib_medqa_anchor_blob()
+    pool = [i for i in load_medqa("test") if not in_mpib(i, blob)]
+    if n is None:
+        return pool
+    return random.Random(seed).sample(pool, min(n, len(pool)))

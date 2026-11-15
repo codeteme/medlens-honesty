@@ -62,9 +62,15 @@ class TinkerModel:
         return self.generate_many([messages], max_new_tokens)[0]
 
     def generate_many(
-        self, batch: list[list[Message]], max_new_tokens: int = 1024
+        self, batch: list[list[Message]], max_new_tokens: int = 1024, chunk: int = 256
     ) -> list[Generation]:
-        """Submit every uncached request at once, then collect results in order."""
+        """Submit uncached requests in chunks of `chunk` (no documented rate limits, so stay
+        modest), collecting each chunk before submitting the next. Results keep input order."""
+        if len(batch) > chunk:
+            out: list[Generation] = []
+            for start in range(0, len(batch), chunk):
+                out += self.generate_many(batch[start : start + chunk], max_new_tokens, chunk)
+            return out
         from tinker import types
 
         results: list[Generation | None] = [None] * len(batch)

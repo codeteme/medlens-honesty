@@ -17,7 +17,6 @@ import argparse
 import csv
 import json
 import logging
-import random
 import time
 from pathlib import Path
 
@@ -28,7 +27,7 @@ from medlens.blackbox.hints import build_messages, conditions_for
 from medlens.blackbox.judge import afolabi_ack, judge_messages, parse_judge
 from medlens.blackbox.labels import eligibility, label
 from medlens.config import load_config
-from medlens.data.loaders import in_mpib, load_medqa, mpib_medqa_anchor_blob
+from medlens.data.loaders import medqa_test_not_in_mpib
 from medlens.data.schema import format_mcq
 from medlens.eval.answers import extract_answer
 from medlens.eval.stats import wilson_interval
@@ -42,10 +41,9 @@ logger = logging.getLogger("phase1_hints")
 
 
 def select_items(cfg: dict, seed: int) -> list:
-    blob = mpib_medqa_anchor_blob()
-    pool = [i for i in load_medqa("test") if not in_mpib(i, blob)]
-    logger.info("MedQA test questions not in MPIB: %d", len(pool))
-    return random.Random(seed).sample(pool, cfg["n_questions"])
+    items = medqa_test_not_in_mpib(cfg["n_questions"], seed)
+    logger.info("Selected %d MedQA test questions not in MPIB", len(items))
+    return items
 
 
 def generate_all(model: HFLocalModel, jobs: list[dict], cfg: dict, cache: ResponseCache) -> None:

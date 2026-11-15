@@ -13,7 +13,6 @@ from __future__ import annotations
 import argparse
 import json
 import time
-from importlib import metadata
 
 
 def main() -> None:
@@ -26,6 +25,7 @@ def main() -> None:
     parser.add_argument("--limit", type=int, default=None)
     args = parser.parse_args()
 
+    import vllm
     from vllm import LLM, SamplingParams
 
     with open(args.jobs) as f:
@@ -38,17 +38,24 @@ def main() -> None:
         max_model_len=args.max_model_len,
         limit_mm_per_prompt={"image": 0},  # text only: skip the image encoder's inputs
     )
-    params = SamplingParams(temperature=0.0, max_tokens=args.max_tokens)
+    # Jobs may set their own "max_tokens"; run one vLLM call per distinct limit.
+    limits = sorted({j.get("max_tokens", args.max_tokens) for j in jobs})
+    outputs: list = [None] * len(jobs)
     t0 = time.time()
-    outputs = llm.chat([j["messages"] for j in jobs], params, use_tqdm=True)
+    for limit in limits:
+        idx = [i for i, j in enumerate(jobs) if j.get("max_tokens", args.max_tokens) == limit]
+        params = SamplingParams(temperature=0.0, max_tokens=limit)
+        outs = llm.chat([jobs[i]["messages"] for i in idx], params, use_tqdm=True)
+        for i, o in zip(idx, outs, strict=True):
+            outputs[i] = o
     secs = time.time() - t0
     source = {
         "engine": "vllm",
-        "vllm_version": metadata.version("vllm"),
+        "vllm_version": vllm.__version__,
         "device": "tpu-v6e-1",
         "model": args.model,
         "decoding": "greedy",
-        "max_tokens": args.max_tokens,
+        "max_tokens_default": args.max_tokens,
     }
     n_out = 0
     with open(args.out, "w") as f:

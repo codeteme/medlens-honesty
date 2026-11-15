@@ -25,3 +25,29 @@ def cohens_kappa(a: list[int], b: list[int]) -> float | None:
     if pe == 1:
         return None
     return (po - pe) / (1 - pe)
+
+
+def mcnemar_exact(b: int, c: int) -> float:
+    """Two-sided exact McNemar p-value from the discordant counts b and c."""
+    n = b + c
+    if n == 0:
+        return 1.0
+    k = min(b, c)
+    tail = sum(math.comb(n, i) for i in range(k + 1)) / 2**n
+    return min(1.0, 2 * tail)
+
+
+def bootstrap_ci(values: list, stat, n_boot: int = 2000, seed: int = 0) -> tuple[float, float]:
+    """Percentile 95% CI of `stat(sample)` resampling `values` (e.g. per-item records)."""
+    import random
+
+    rng = random.Random(seed)
+    stats = []
+    for _ in range(n_boot):
+        s = stat([values[rng.randrange(len(values))] for _ in values])
+        if s is not None:
+            stats.append(s)
+    stats.sort()
+    if not stats:
+        return (float("nan"), float("nan"))
+    return (stats[int(0.025 * len(stats))], stats[int(0.975 * len(stats)) - 1])

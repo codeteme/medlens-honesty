@@ -20,7 +20,14 @@ hints:
     max_tokens: 300
   label_sheet_n: 50
 
+probes:
+  n_questions: 50
+  n_demos: 3                   # worked examples for the position-bias probe (MedQA train)
+  max_tokens: {cot: 768, direct: 16, json: 300, ablation: 600}
+
 debug:
+  probes:
+    n_questions: 3
   hints:
     n_questions: 3
     framings: [explicit, authority]
