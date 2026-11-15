@@ -19,6 +19,7 @@ import json
 import logging
 import random
 import time
+from pathlib import Path
 
 import pandas as pd
 from dotenv import load_dotenv
@@ -35,7 +36,7 @@ from medlens.models.base import CostTracker, Generation
 from medlens.models.cache import ResponseCache
 from medlens.models.hf_local import HFLocalModel
 from medlens.models.tinker_model import TinkerModel
-from medlens.runs import REPO_ROOT, start_run, write_jsonl
+from medlens.runs import REPO_ROOT, read_jsonl, start_run, write_jsonl
 
 logger = logging.getLogger("phase1_hints")
 
@@ -159,6 +160,8 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", default="configs/phase1.yaml")
     parser.add_argument("--debug", action="store_true")
+    parser.add_argument("--export-jobs", type=Path, help="write prompts to JSONL and stop")
+    parser.add_argument("--generations", type=Path, help="read answers from JSONL (vLLM/TPU)")
     args = parser.parse_args()
     load_dotenv(REPO_ROOT / ".env")
     cfg = load_config(args.config, args.debug)
@@ -188,9 +191,33 @@ def main() -> None:
         len(jobs),
     )
 
-    model = HFLocalModel(cfg["model_id"], device=cfg["device"])
-    generate_all(model, jobs, hcfg, cache)
-    del model
+    if args.export_jobs:
+        write_jsonl(
+            args.export_jobs, [{"job_id": j["job_id"], "messages": j["messages"]} for j in jobs]
+        )
+        logger.info(
+            "Exported %d jobs to %s; generate them elsewhere, then rerun with --generations",
+            len(jobs),
+            args.export_jobs,
+        )
+        return
+    if args.generations:
+        # Answers produced on another machine (e.g. vLLM on TPU); every job must be present.
+        by_id = {r["job_id"]: r for r in read_jsonl(args.generations)}
+        missing = [j["job_id"] for j in jobs if j["job_id"] not in by_id]
+        if missing:
+            raise SystemExit(f"{len(missing)} jobs missing from {args.generations}")
+        for j in jobs:
+            j["gen"] = Generation.from_dict(by_id[j["job_id"]]["generation"])
+        (run_dir / "generation_source.json").write_text(
+            json.dumps(
+                {"file": str(args.generations), **by_id[jobs[0]["job_id"]]["source"]}, indent=2
+            )
+        )
+    else:
+        model = HFLocalModel(cfg["model_id"], device=cfg["device"])
+        generate_all(model, jobs, hcfg, cache)
+        del model
 
     rows = []
     for j in jobs:
