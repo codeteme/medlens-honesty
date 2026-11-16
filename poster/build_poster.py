@@ -280,7 +280,7 @@ BODY = f"""
   <div class="cols">
     <div class="col">
       <div class="sec"><div class="bar">Abstract</div><div class="box">
-        <p>A medical model’s written reasoning may leave out what drove its answer. We added hints that point to an answer to {N_Q} MedQA questions for MedGemma 4B. The hint changed the answer in {N_FOLLOWED} runs, and the reasoning mentioned it in only {N_ADMITTED} ({pct(N_ADMITTED / N_FOLLOWED, 1)}). Inside the model, the hint travels as an answer-letter signal. A probe on layer-22 activations, never told the hint, catches hint-following with AUROC {post.auroc:.2f}. Steering against that signal fixes quick answers but not reasoned ones, and the probe does not catch prompt injection ({H1['auroc_attacked_run']:.2f}).</p>
+        <p>A medical model’s written reasoning may leave out what drove its answer. We added hints that point to an answer to {N_Q} MedQA questions for MedGemma 4B. The hint changed the answer in {N_FOLLOWED} runs, and the reasoning mentioned it in only {N_ADMITTED} ({pct(N_ADMITTED / N_FOLLOWED, 1)}). Inside the model, the hint travels as an answer-letter signal. A probe on layer-22 activations, never told the hint, catches hint-following with AUROC {post.auroc:.2f}. Removing that signal fixes quick answers but not reasoned ones, and the probe does not catch prompt injection ({H1['auroc_attacked_run']:.2f}).</p>
       </div></div>
       <div class="sec"><div class="bar">Objectives</div><div class="box">
         <ol>
@@ -320,7 +320,7 @@ BODY = f"""
             <li>A hint-blind probe catches silent hint-following (within hint type {fu['post_reasoning']['per_hint_type']['mean_within_type']:.2f}; unseen hint types {min(held_type):.2f}–{max(held_type):.2f}). Text-only detectors do far worse.</li>
           </ul>
           {fig_detect}
-          <p class="cap">AUROC (0.5 = chance) for silent hint-following vs ignored hints, {int(post.n):,} runs. Bottom bar: moved vs unmoved answers on {mpib['n_cases']} injection cases.</p>
+          <p class="cap">AUROC (0.5 = chance) for silent hint-following vs ignored hints, {int(post.n):,} runs. Bottom bar: moved vs unmoved answers on {H1['n_moved'] + H1['n_not_moved']} injection cases.</p>
         </div>
         <div class="grp">
           <div class="glabel">3 · Fix it</div>
@@ -351,7 +351,7 @@ BODY = f"""
         <ol>
           <li><b>See it.</b> The reasoning hides almost every hint it follows.</li>
           <li><b>Catch it.</b> Activations reveal it, but the probe flags <i>following</i>, not hiding: it fires on {pct(ack_flag)} of the {n_ack} admitted runs, and on {pct(agree['mean'])} of right-answer hints the model agreed with anyway.</li>
-          <li><b>Fix it.</b> Steering that works on quick answers fails once the model reasons ({cot2['mac_reproduces_following']}/{cot2['n']} still followed after feature removal).</li>
+          <li><b>Fix it.</b> Removing the direction cut quick-answer hint-following ({pct(float(screen.loc['baseline', 'follow_rate']))} → {pct(float(screen.loc['ablate_pre_L22', 'follow_rate']))}) but not step-by-step ({pct(float(cot4.loc['baseline', 'follow_rate']))} → {pct(float(cot4.loc['ablate_pre_L22', 'follow_rate']))}).</li>
           <li><b>Injection.</b> The probe does not transfer.</li>
         </ol>
       </div></div>

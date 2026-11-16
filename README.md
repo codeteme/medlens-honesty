@@ -9,37 +9,41 @@ said "an attending thinks it's B," without ever mentioning that. This project tr
 in a demo that puts the model's reasoning next to an internal warning.
 
 - **Model:** MedGemma 4B for every phase, analysed with Google DeepMind's Gemma Scope 2 tools.
-- **Optional outside check:** Qwen 27B (via Tinker), inputs and outputs only, at the end.
+- **Status:** complete. Duke AIPI 590 (Explainable AI) final project, built in phases.
 
-This is a Duke Explainable AI final project. It is built in phases; see `reports/` for each
-phase's results. **Status: Phase 5 complete (see `reports/phase1.md` to `reports/phase5.md`).**
+**Read this first:**
+- Paper draft: `reports/paper.md`
+- Poster: `poster/medlens-honesty-poster-24x36.pdf`
+- Demo: `demo/` (see `demo/README.md`). A private online copy is at
+  [claude.ai](https://claude.ai/artifact/Voko8MSzjQnDq1jkEMYypa); ask the author for access.
+- Reproducibility checklist: `reports/reproducibility.md`
+- One report per phase: `reports/phase0.md` to `reports/phase5.md`
 
-**Phase 1 headline:** across 375 MedQA questions, MedGemma 4B moved to a hinted answer in
-912 eligible runs, and its written reasoning mentioned the hint in only 30 of them (3.3%).
+## What we found
 
-**Phase 2 headline:** inside the model, the hint travels mainly as an *answer letter*
-("multiple-choice answer letter" features on the hint's own tokens at layers 17/22), not as
-an authority signal. Removing 10 of these features weakens hint-following when the model
-answers immediately (87% to 75%) but not when it reasons step by step first.
+1. **The reasoning hides the hint.** Across 375 MedQA questions, a hint changed MedGemma 4B's
+   answer in 912 eligible runs. Its reasoning mentioned the hint in only 30 (3.3%). The
+   strongest hint, a fake metadata tag, moved 64% of answers and was never mentioned.
+2. **Inside, the hint is an answer letter.** The causal features sit on the hint's own letter
+   ("multiple-choice answer letter", layers 17 and 22), not on who gave the hint. Removing 10
+   of them weakens hint-following in quick answers (87% to 75%) but not in step-by-step answers.
+3. **The activations reveal it.** A probe on layer-22 activations, never told the hint, flags
+   silently followed hints with AUROC 0.98 after reasoning (0.87 before). It works on unseen
+   hint types and specialties. Text-only detectors score 0.56–0.72.
+4. **The probe flags following, not hiding.** It fires on 76% of runs that admitted the hint,
+   and on 54% of right-answer hints the model would have chosen anyway.
+5. **Fixing it failed once the model reasons.** Removing the hint-following direction
+   cut quick-answer hint-following from 45% to 28%. Silent following in step-by-step answers
+   stayed at 31% or got worse (pre-registered test).
+6. **No detectable link to prompt injection.** On 150 MPIB injection cases, the probe could not tell
+   which answers the injection changed (AUROC 0.48). The pre-registered verdict on a shared
+   mechanism is inconclusive, leaning against.
 
-**Phase 3 headline:** a simple probe on the model's activations, never told what the hint was,
-flags silently followed hints with AUROC 0.98 once the model has reasoned (0.87 before it
-reasons). It rarely fires on prompts with no hint (under 1%), and it works on hint types and
-specialties it wasn't trained on. Text-only detectors score 0.56–0.72. Caveat: the probe
-detects *following* the hint, not *hiding* it; it fires on most runs that admitted the hint too.
-
-**Phase 4 headline:** steering the model away from the "hint-following" direction cut
-hint-following in quick answers (45% to 28%) but not in step-by-step answers (31% silent
-following with or without a fix). On 150 prompt-injection cases (MPIB), the Phase 3 detector
-could not tell which answers the injection changed (AUROC 0.48). The main hypothesis, that
-hint-following and injection share an internal signal, is **inconclusive** by the
-pre-registered rule, and the evidence we have leans against it.
-
-**Phase 5 headline:** a static demo page (`demo/`, see `demo/README.md`) shows the model's
-reasoning next to the no-hint test, the judge's check and the detector's warning badge, with
-live hint toggles for 40 questions. Building it showed the badge also fires when the answer
-merely agrees with the hint (54% of right-answer hints the model would have followed anyway).
-The user confirmed the MedQA questions may be shared, so the demo data is committed.
+**Main limits:**
+- One 4B model, English multiple choice, greedy decoding.
+- Every hint names an answer letter.
+- The judge was checked against model annotators, not people.
+- The optional Qwen 27B outside check and the human study were not run.
 
 ## Setup
 
@@ -99,6 +103,8 @@ package versions, logs and results. `outputs/` and `cache/` are not committed.
 configs/        YAML configs (each has a `debug:` block) and verified API prices
 src/medlens/    data loaders, model wrappers, interpretability and evaluation code
 scripts/        one entry point per experiment
-reports/        one plain-English report per phase
-tests/          pytest tests for data processing and metrics
+reports/        one plain-English report per phase, the paper draft, reproducibility checklist
+demo/           static demo page and its precomputed data
+poster/         poster build script, fonts, logo and the PDF
+tests/          pytest tests for data processing, metrics and hooks
 ```

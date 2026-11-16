@@ -54,5 +54,6 @@ dev = [
 "src/medlens/blackbox/judge.py" = ["E501"]
 "src/medlens/blackbox/probes.py" = ["E501"]
 "scripts/phase2_interpret.py" = ["E501"]
+"poster/build_poster.py" = ["E501"]  # inline HTML and SVG templates
 "scripts/phase3_llm_tasks.py" = ["E501"]
 "tests/*" = ["E501"]

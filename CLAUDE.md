@@ -114,6 +114,11 @@ Research project for the Duke Explainable AI final project, built across several
   without the doctype/html/head/body tags, plus `style.css`, `app.js` and `data/`.
 - For Phase 7: report the agreement finding (badge fires when the answer merely matches the hint).
 
+**Phase 7 write-up (2026-11-16):** `reports/paper.md` (workshop draft), `reports/reproducibility.md`,
+README "What we found", and a 24 x 36 in poster (`poster/build_poster.py` -> PDF; layout adapted
+from the SSO poster at the user's request; every number read from saved outputs and asserted).
+The optional Qwen 27B outside check was not run.
+
 **Main hypothesis (Phase 4):** the same internal features that make 4B follow hints without admitting it also make it vulnerable to prompt injection.
 
 ## Phases
