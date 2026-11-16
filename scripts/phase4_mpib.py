@@ -96,7 +96,7 @@ def generate_step(cfg, run_dir, cases, fix: str | None, dir_run: Path | None) ->
                 continue
             model = model or HFLocalModel(cfg["model_id"], device=cfg["device"])
             spec = cfg["settings"][setting]
-            dirs, info = load_directions(dir_run) if spec.get("ops") else ({}, {})
+            dirs, info = load_directions(dir_run) if dir_run and spec.get("ops") else ({}, {})
             hooks = build_hooks(spec, dirs, info, cfg, {}, model)
             prompt_fix = cfg["prompt_fix_text"] if spec.get("prompt") else None
             msgs = [messages_for(items_for(c)[version], NONE, prompt_fix) for c in cases]
@@ -183,7 +183,7 @@ def injected_feature_stats(model, saes, prompt: str, case: dict) -> dict:
     ids = torch.tensor([enc["input_ids"]], device=model.device)
     with torch.no_grad():
         _, acts = model.forward_logits(ids, capture=[(L, "resid_post") for L in CAUSAL])
-    out = {"n_injected_tokens": len(inj_tok)}
+    out: dict[str, float | None] = {"n_injected_tokens": len(inj_tok)}
     for L, feats in CAUSAL.items():
         F = saes[L].encode(acts[(L, "resid_post")][0].to(model.device)).float().cpu()
         for f in feats:
@@ -213,6 +213,10 @@ def boot_diff(s1, s2, y, n: int = 1000, seed: int = 0):
         if a is not None and b is not None:
             vals.append(a - b)
     return float(np.quantile(vals, 0.025)), float(np.quantile(vals, 0.975))
+
+
+def probe_scores(probes_run: Path, name: str, X: np.ndarray) -> np.ndarray:
+    return joblib.load(probes_run / f"probe_{name}.joblib")["model"].predict_proba(X)[:, 1]
 
 
 def analyze_step(cfg, run_dir, cases, fix: str | None, probes_run: Path) -> None:
@@ -248,8 +252,7 @@ def analyze_step(cfg, run_dir, cases, fix: str | None, probes_run: Path) -> None
     post, pre = np.load(run_dir / "post_L22.npy"), np.load(run_dir / "pre_L22.npy")
     h1 = {}
     for name, X in (("post", post), ("pre", pre)):
-        probe = joblib.load(probes_run / f"probe_{name}.joblib")["model"]
-        sc = probe.predict_proba(X)[:, 1]
+        sc = probe_scores(probes_run, name, X)
         att = sc[(cap.version == "attacked").to_numpy()]
         cln = sc[(cap.version == "clean").to_numpy()]
         mask = ok0.loc[ids].to_numpy()
@@ -274,11 +277,28 @@ def analyze_step(cfg, run_dir, cases, fix: str | None, probes_run: Path) -> None
     )
     res["H1"] = h1
 
+    # Exploratory (not pre-registered): post probe on attacks that turned a right answer wrong,
+    # and the Phase 1 noise floor (how often a harmless sham sentence changes the answer).
+    att_post = probe_scores(probes_run, "post", post)[(cap.version == "attacked").to_numpy()]
+    s = pd.Series(att_post, index=cap[cap.version == "attacked"].case_id.to_numpy()).loc[ids]
+    harm, stay = (c0 == gold) & (a0 != gold) & ok0, (c0 == gold) & (a0 == gold)
+    lab = pd.read_parquet(REPO_ROOT / cfg["phase1_labels"])
+    n_, s_ = (lab[lab.condition == k].set_index("item_id").pred for k in ("none", "sham"))
+    both = n_.notna() & s_.notna()
+    res["exploratory"] = {
+        "post_auroc_correct_to_wrong_vs_stayed_correct": auroc(
+            s[harm.to_numpy()].tolist(), s[stay.to_numpy()].tolist()
+        ),
+        "n_correct_to_wrong": int(harm.sum()),
+        "n_stayed_correct": int(stay.sum()),
+        "phase1_sham_moved_rate": float((n_[both] != s_[both]).mean()),
+    }
+
     # H2: does the fix reduce moved answers? Fix on both prompts (primary), paired McNemar.
     if fix is None:
         res["H2"] = {"H2_holds": None, "note": "not run: no Part A fix survived the dev check"}
     else:
-        res["H2"] = h2(g, ids, m0, ok0, moved, fix)
+        res["H2"] = h2(ids, m0, ok0, moved, fix)
     res["H3"] = h3(cap)
     h = res["H1"]["H1_holds"], res["H2"]["H2_holds"]
     if None in h:  # pre-registered: an uninformative fix arm makes the verdict inconclusive
@@ -291,7 +311,7 @@ def analyze_step(cfg, run_dir, cases, fix: str | None, probes_run: Path) -> None
     print(json.dumps(res, indent=2))
 
 
-def h2(g, ids, m0, ok0, moved, fix: str) -> dict:
+def h2(ids, m0, ok0, moved, fix: str) -> dict:
     m1, ok1 = moved(fix, fix)
     both = ok0 & ok1
     b0, b1 = m0.reindex(ids)[both], m1.reindex(ids)[both]

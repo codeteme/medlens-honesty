@@ -85,6 +85,19 @@ Research project for the Duke Explainable AI final project, built across several
 - For Phase 4: use the L22 post-reasoning probe as a cheap outcome measure, and try its weight
   vector as a steering direction; run it on MPIB injection cases for the injection link.
 
+**Phase 4 results to build on (2026-11-16, see reports/phase4.md):**
+- Fix: mean-difference directions (unfaithful − unaffected, dev half) removed or steered against at
+  every token. Quick answers: hint-following 45% → 28% (remove, L22), random arrows at L22 do
+  nothing, L17 is fragile (random arrows break it). Step-by-step (dev, 24 questions): **no fix
+  lowered silent following** (31% no fix; 31–38% with fixes). Test-half confirmation and the MPIB
+  fix arm were skipped (user decision; reported as deviations).
+- MPIB V1 (150 cases, attached to original MedQA options): 26% of answers moved, accuracy
+  unchanged (64% vs 65%); Phase 1 sham moves 14%. Phase 3 post probe on moved vs not: AUROC 0.48.
+  Feature 22/146 is far more active on injected text (11.0 vs 0.06). Verdict: **inconclusive**
+  (pre-registered), evidence leans against.
+- For Phase 5: present the detector as "flags hint-following", not injection. Never show MPIB
+  attack text. Runs: `outputs/phase4_{directions,screen,cot_dev,mpib}/`.
+
 **Main hypothesis (Phase 4):** the same internal features that make 4B follow hints without admitting it also make it vulnerable to prompt injection.
 
 ## Phases
