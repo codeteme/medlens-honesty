@@ -108,6 +108,9 @@ Research project for the Duke Explainable AI final project, built across several
 - MedQA license is "unknown" on HF, but the **user confirmed (2026-11-16) MedQA questions may
   be shared**; `demo/data/` is committed. HAI-DEF terms allow showing precomputed outputs; keep
   the "AI-generated, not medical advice" notice. Never show MPIB attack text.
+- Published as a private claude.ai artifact (owner shares it via the page's Share menu):
+  https://claude.ai/artifact/Voko8MSzjQnDq1jkEMYypa. The published page is `demo/index.html`
+  without the doctype/html/head/body tags, plus `style.css`, `app.js` and `data/`.
 - For Phase 6: reuse the case view as the study interface; include agreement cases.
 
 **Main hypothesis (Phase 4):** the same internal features that make 4B follow hints without admitting it also make it vulnerable to prompt injection.

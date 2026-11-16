@@ -182,7 +182,7 @@ function renderNotes() {
 
 function update() {
   const c = condName();
-  history.replaceState(null, "", `#q=${state.q.id}&c=${c}`);
+  try { history.replaceState(null, "", `#${state.q.id}--${c.replace("_", "-")}`); } catch (e) { /* hash is a convenience */ }
   renderToggles();
   const run = state.q.runs[c];
   renderReasoning(run);
@@ -210,9 +210,11 @@ async function init() {
   renderGallery();
   renderNotes();
   $("search").addEventListener("input", renderList);
-  const h = new URLSearchParams(location.hash.slice(1));
+  // Links look like #<question id>--<condition>, e.g. #medqa-006382b37f7a--metadata-gold.
+  const [hq, hc] = location.hash.slice(1).split("--");
+  const known = state.index.questions.some((q) => q.id === hq);
   const first = state.index.gallery.caught.picks[0] || { item_id: state.index.questions[0].id, condition: "explicit_wrong" };
-  await go(h.get("q") || first.item_id, h.get("c") || first.condition);
+  await go(known ? hq : first.item_id, known && hc ? hc.replace("-", "_") : first.condition);
 }
 
 init();

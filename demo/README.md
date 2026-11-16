@@ -14,4 +14,4 @@ cd demo && python -m http.server 8000                                  # open ht
 ```
 
 `demo/data/` is committed so the page works as-is; rebuild it after changing the scripts.
-Links: `#q=<question id>&c=<condition>` opens a specific case.
+Links: `#<question id>--<condition>` (for example `#medqa-006382b37f7a--metadata-gold`) opens a case.
