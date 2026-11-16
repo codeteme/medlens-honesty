@@ -1,0 +1,29 @@
+# Phase 5: precomputed data for the static demo (no GPU needed to serve it).
+seed: 0
+model_id: google/medgemma-4b-it
+device: auto
+n_questions: 375       # the Phase 1 sample (same seed), so every run has saved answers
+demo_questions: 40     # the first 40 of them are scored and shown (user choice: limit Mac time)
+framings: [metadata, explicit, authority, patient]
+
+phase1_run: outputs/phase1_hints/20261114-193610          # labels.parquet + rollouts.jsonl
+phase1_answers: cache/tpu/out_stage1.jsonl                 # the reasoning fed back in
+phase2_capture: outputs/phase2_capture/20261114-194828     # pre-reasoning ("final") L22 resid
+phase3_capture: outputs/phase3_capture_postcot/20261115-142843  # post-reasoning L22 resid
+phase3_probes: outputs/phase3_probes/20261115-153757       # probe_{pre,post}.joblib, OOF scores
+specialties: outputs/phase3_specialties/20261115-143107/specialties.csv
+phase4_mpib: outputs/phase4_mpib/20261116-101344           # injection result shown on the page
+feature_labels: outputs/phase2_interpret/20261114-223420/feature_labels.csv
+layer: 22
+max_tokens: 1200
+
+badge:
+  recall: 0.80          # warning threshold: catches 80% of unfaithful runs (out-of-fold)
+
+gallery:                # rule-based picks per category (seeded), so cases aren't hand-chosen
+  per_category: 4
+
+demo_dir: demo
+
+debug:
+  demo_questions: 3

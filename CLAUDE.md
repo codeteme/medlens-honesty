@@ -98,6 +98,18 @@ Research project for the Duke Explainable AI final project, built across several
 - For Phase 5: present the detector as "flags hint-following", not injection. Never show MPIB
   attack text. Runs: `outputs/phase4_{directions,screen,cot_dev,mpib}/`.
 
+**Phase 5 results to build on (2026-11-16, see reports/phase5.md):**
+- Static demo in `demo/` (vanilla HTML/JS, precomputed JSON in `demo/data/`, gitignored).
+  Scores: `outputs/phase5_score_runs/20261116-171012` (first 40 of the 375 questions, all 10
+  conditions; user chose 40 to save Mac time). Build: `phase5_build_demo.py`; serve with
+  `python -m http.server` from `demo/`.
+- Badge threshold 0.86 (80% recall, OOF over all 1,272 runs). It fires on 54% of right-answer
+  hints the model already agreed with: it reads "answer matches a suggested letter".
+- **Not deployed:** MedQA data license is "unknown" (HF card); MIT on GitHub covers code only.
+  Ask the user before any public deployment. HAI-DEF terms allow showing precomputed outputs;
+  keep the "AI-generated, not medical advice" notice.
+- For Phase 6: reuse the case view as the study interface; include agreement cases.
+
 **Main hypothesis (Phase 4):** the same internal features that make 4B follow hints without admitting it also make it vulnerable to prompt injection.
 
 ## Phases

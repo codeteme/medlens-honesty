@@ -12,7 +12,7 @@ showing clinicians a warning helps them decide when to trust the model.
 - **Optional outside check:** Qwen 27B (via Tinker), inputs and outputs only, at the end.
 
 This is a Duke Explainable AI final project. It is built in phases; see `reports/` for each
-phase's results. **Status: Phase 4 complete (see `reports/phase1.md` to `reports/phase4.md`).**
+phase's results. **Status: Phase 5 complete (see `reports/phase1.md` to `reports/phase5.md`).**
 
 **Phase 1 headline:** across 375 MedQA questions, MedGemma 4B moved to a hinted answer in
 912 eligible runs, and its written reasoning mentioned the hint in only 30 of them (3.3%).
@@ -34,6 +34,12 @@ following with or without a fix). On 150 prompt-injection cases (MPIB), the Phas
 could not tell which answers the injection changed (AUROC 0.48). The main hypothesis, that
 hint-following and injection share an internal signal, is **inconclusive** by the
 pre-registered rule, and the evidence we have leans against it.
+
+**Phase 5 headline:** a static demo page (`demo/`, see `demo/README.md`) shows the model's
+reasoning next to the no-hint test, the judge's check and the detector's warning badge, with
+live hint toggles for 40 questions. Building it showed the badge also fires when the answer
+merely agrees with the hint (54% of right-answer hints the model would have followed anyway).
+It is not deployed publicly yet: MedQA's license for displaying questions is unclear.
 
 ## Setup
 
@@ -81,8 +87,8 @@ uv run python scripts/phase1_judge_agreement.py outputs/phase1_hints/<run>/ --an
 uv run python scripts/phase1_report_tables.py outputs/phase1_hints/<run>/ outputs/phase1_probes/<run>/
 ```
 
-Phase 2 to Phase 4 reproduction steps are at the end of `reports/phase2.md`,
-`reports/phase3.md` and `reports/phase4.md`.
+Phase 2 to Phase 5 reproduction steps are at the end of `reports/phase2.md` to
+`reports/phase5.md`.
 
 Each run writes to `outputs/<script>/<timestamp>/` with the exact config, the git commit,
 package versions, logs and results. `outputs/` and `cache/` are not committed.

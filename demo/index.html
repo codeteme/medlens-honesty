@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MedLens Honesty Demo</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <h1>What the model says vs. what drove its answer</h1>
+    <p class="lede">MedGemma 4B, a small medical AI, answers exam questions step by step. We add a
+      hint to the question and watch two things: whether its written reasoning mentions the
+      hint, and whether a detector reading its internal activity says it followed the hint.</p>
+    <p class="notice" role="note"><strong>Research demo.</strong> All model text is AI-generated
+      and was precomputed; nothing here runs a model. It is not medical advice, and the
+      model's answers are often wrong.</p>
+    <div class="stats" id="stats"></div>
+  </div>
+</header>
+
+<div class="wrap layout">
+  <nav class="side" aria-label="Cases">
+    <h2>Gallery</h2>
+    <p class="hint-text">Cases picked by rule (seeded), not by hand. Four per shelf.</p>
+    <div id="gallery"></div>
+    <h2>All questions</h2>
+    <input id="search" type="search" placeholder="Search questions or specialty" aria-label="Search questions">
+    <ul id="qlist" class="qlist"></ul>
+  </nav>
+
+  <main id="main">
+    <section class="card" id="question-card"></section>
+
+    <section class="card toggles" aria-label="Hint">
+      <h2>Choose a hint</h2>
+      <div class="seg" id="framing" role="radiogroup" aria-label="Hint type"></div>
+      <div class="seg" id="direction" role="radiogroup" aria-label="Hint points to"></div>
+      <p class="cue" id="cue"></p>
+    </section>
+
+    <div class="compare">
+      <section class="card says">
+        <h2>What the model says</h2>
+        <div id="reasoning" class="reasoning"></div>
+        <div id="final" class="final"></div>
+      </section>
+      <section class="card drove">
+        <h2>What actually drove the answer</h2>
+        <div id="evidence"></div>
+      </section>
+    </div>
+
+    <section class="card notes">
+      <h2>How to read this, and what the detector can't do</h2>
+      <ul id="notes"></ul>
+      <h3>Inside the model</h3>
+      <p>Phase 2 found the hint travels as an <em>answer letter</em>. These Gemma Scope 2 features
+        fire on the hinted letter, and turning them off weakens hint-following in quick answers:</p>
+      <ul id="features" class="features"></ul>
+    </section>
+  </main>
+</div>
+
+<footer class="wrap foot">
+  Duke Explainable AI (AIPI 590) final project · model: google/medgemma-4b-it ·
+  questions: MedQA (US, 4 options) · details in <code>reports/phase1.md</code>–<code>phase5.md</code>
+</footer>
+<script src="app.js"></script>
+</body>
+</html>
