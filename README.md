@@ -5,8 +5,8 @@
 Medical AI models often explain their reasoning before answering. Sometimes that explanation
 leaves out what really mattered. For example, a model may switch answers because the prompt
 said "an attending thinks it's B," without ever mentioning that. This project tries to
-(1) catch these cases by looking inside the model, (2) fix them, and (3) test whether
-showing clinicians a warning helps them decide when to trust the model.
+(1) catch these cases by looking inside the model, (2) fix them, and (3) show the difference
+in a demo that puts the model's reasoning next to an internal warning.
 
 - **Model:** MedGemma 4B for every phase, analysed with Google DeepMind's Gemma Scope 2 tools.
 - **Optional outside check:** Qwen 27B (via Tinker), inputs and outputs only, at the end.

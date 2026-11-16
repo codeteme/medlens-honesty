@@ -105,16 +105,14 @@ ignored). They are exactly the runs a real deployment would meet.
    errors, and the layout was checked at desktop and phone width, in light and dark themes. No
    screen-reader test was done.
 
-## Recommendations for Phase 6 (human study)
+## Recommendations for Phase 7 (write-up)
 
-1. **Use the demo's case view as the study interface,** with three versions: reasoning only;
-   plus confidence (the quick-answer letter chances); plus the warning badge.
-2. **Include agreement cases** (the answer matches the hint, but the hint didn't change it).
-   They are where the badge misleads, and the study should measure whether clinicians
-   over-trust it there.
-3. **Pick study cases by rule** from all 375 questions (score more on the Mac as needed),
-   balanced across the gallery shelves.
-4. **Keep the "AI-generated, not medical advice" notice** on every shared copy of the demo.
+*Phase 6 (human study materials) was dropped on 2026-11-16: no human study is planned.*
+
+1. **Report the agreement finding** alongside the Phase 3 detector: the badge fires when the
+   answer merely matches the hint. It belongs in the paper's limitations and future work.
+2. **Point readers to the demo** as the way to see individual cases.
+3. **Keep the "AI-generated, not medical advice" notice** on every shared copy of the demo.
 
 ## Cost and compute
 

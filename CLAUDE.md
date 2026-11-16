@@ -7,7 +7,8 @@ Research project for the Duke Explainable AI final project, built across several
 **The question.** Medical AI models write out their reasoning before answering, but sometimes that reasoning hides what actually drove the answer. Example: the model switches its answer because the prompt says "an attending thinks it's B," but its reasoning never mentions that. We ask three things:
 1. Can we catch this by looking inside the model?
 2. Can we fix it?
-3. Does showing clinicians a warning help them judge when to trust the model?
+3. ~~Does showing clinicians a warning help them judge when to trust the model?~~ Dropped
+   (2026-11-16): the user will not run a human study. The demo (Phase 5) shows the warning.
 
 **The models, split by what we can see:**
 - **Inside view: MedGemma 4B** (`google/medgemma-4b-it`). We can read its internal activity, because it runs on a laptop and Google's Gemma Scope 2 tools are built for its size. All the "looking inside" work happens here. It also handles images, but we use it with text only.
@@ -40,7 +41,7 @@ Research project for the Duke Explainable AI final project, built across several
 - MPIB (Lee et al., Findings of EMNLP 2026): data at `jhlee0619/mpib` on Hugging Face (gated), code at `jhlee0619/mpib-eval` (no license file). It is built from MedQA, so deduplicate questions against our MedQA data. Never put its restricted attack text in the public demo.
 
 **Relation to the user's earlier project, Silent Second Opinion (SSO)** (`../silent-second-opinion`, AIPI 590, Oct 2026). SSO asked whether MedGemma **1.5** 4B discloses MedMisBench cues (a fabricated claim vs a bare assertion, plus a sham baseline) in its thinking trace and response. It was black-box only, used a Qwen3-14B judge validated against LLM annotators only, and had no human labels.
-- **Decision (2026-11-14, Option 2):** keep MedGemma 4B **v1** (`google/medgemma-4b-it`). Do **not** reuse SSO's data or rollouts. Cite SSO as prior work and state what is new: internals (Phases 2–4), an activation-based detector, steering, the injection link, human-validated judge labels, and the clinician study.
+- **Decision (2026-11-14, Option 2):** keep MedGemma 4B **v1** (`google/medgemma-4b-it`). Do **not** reuse SSO's data or rollouts. Cite SSO as prior work and state what is new: internals (Phases 2–4), an activation-based detector, steering, the injection link, human-validated judge labels, and the demo.
 - **SSO lessons to apply in Phase 1:**
   - a sham-sentence baseline as the noise floor
   - "eligible" = the no-hint answer is parsed and isn't the target; unfinished runs are missing data, not resisted cues
@@ -111,7 +112,7 @@ Research project for the Duke Explainable AI final project, built across several
 - Published as a private claude.ai artifact (owner shares it via the page's Share menu):
   https://claude.ai/artifact/Voko8MSzjQnDq1jkEMYypa. The published page is `demo/index.html`
   without the doctype/html/head/body tags, plus `style.css`, `app.js` and `data/`.
-- For Phase 6: reuse the case view as the study interface; include agreement cases.
+- For Phase 7: report the agreement finding (badge fires when the answer merely matches the hint).
 
 **Main hypothesis (Phase 4):** the same internal features that make 4B follow hints without admitting it also make it vulnerable to prompt injection.
 
@@ -132,7 +133,7 @@ Research project for the Duke Explainable AI final project, built across several
    - **Injection test:** run MPIB on 4B with and without the fix, and check whether the Phase 2 features activate on injection cases.
    - **Verdict:** test the main hypothesis and report supported, not supported, or inconclusive.
 5. **Demo.** A web app showing what the model *says* next to what *actually drove* the answer, with a warning badge, live hint toggles and a gallery of cases. Results are precomputed, so the public demo needs no GPU.
-6. **Human study materials.** Protocol, consent form draft, survey and IRB exempt-determination text for 5–10 clinicians or students. Conditions: reasoning only, plus confidence, or plus the internal warning. The analysis script is tested on simulated data, clearly labeled as simulated.
+6. ~~**Human study materials.**~~ **Dropped (2026-11-16):** the user does not plan to run a human study, so no protocol, consent form, survey or IRB text. After Phase 5, the next phase is Phase 7.
 7. **Write-up.** README, workshop paper draft (`reports/paper.md`), and a reproducibility checklist, using only real results.
 
 **Known limitations to state in all reports:**
