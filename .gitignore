@@ -23,6 +23,3 @@ cache/
 .DS_Store
 .idea/
 .vscode/
-
-# Demo data holds MedQA question text (license unclear) and model outputs; built locally
-demo/data/

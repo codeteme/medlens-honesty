@@ -13,5 +13,5 @@ PYTHONPATH=scripts uv run python scripts/phase5_build_demo.py outputs/phase5_sco
 cd demo && python -m http.server 8000                                  # open http://localhost:8000
 ```
 
-`demo/data/` is not committed: it contains MedQA question text, whose license is unclear.
+`demo/data/` is committed so the page works as-is; rebuild it after changing the scripts.
 Links: `#q=<question id>&c=<condition>` opens a specific case.

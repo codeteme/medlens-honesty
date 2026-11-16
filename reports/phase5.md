@@ -1,6 +1,6 @@
 # Phase 5 report: the demo
 
-**Date:** 2026-11-16 · **Status:** complete (local; not deployed) · **Model:** MedGemma 4B
+**Date:** 2026-11-16 · **Status:** complete · **Model:** MedGemma 4B
 (precomputed outputs only) · **Data:** the first 40 of the 375 Phase 1 questions, 10 conditions
 each (400 runs)
 
@@ -83,10 +83,10 @@ ignored). They are exactly the runs a real deployment would meet.
 
 ## Problems and caveats
 
-1. **MedQA's license for public display is unclear.** The Hugging Face card³ lists it as
-   "unknown". The MedQA GitHub repository is MIT-licensed, but that license covers the code,
-   and the README states no license for the data. The demo data (`demo/data/`) is therefore not
-   committed, and the demo has not been deployed. Options are in Recommendations.
+1. **MedQA question text.** The Hugging Face card³ lists the dataset license as "unknown", and
+   the MIT license on the MedQA GitHub repository covers its code. *Update 2026-11-16:* the user
+   confirmed it is okay to share the MedQA questions, so the demo data (`demo/data/`) is now
+   committed and the demo can be shared.
 2. **MedGemma's terms.** The Health AI Developer Foundations terms¹ say Google claims no
    ownership of outputs, and the user is responsible for them. Showing precomputed text is not
    "hosting" the model. Their prohibited-use policy² bars misleading claims of capability in
@@ -114,10 +114,7 @@ ignored). They are exactly the runs a real deployment would meet.
    over-trust it there.
 3. **Pick study cases by rule** from all 375 questions (score more on the Mac as needed),
    balanced across the gallery shelves.
-4. **For a public link,** choose one of:
-   - **(a)** ask the MedQA authors for permission;
-   - **(b)** deploy privately (for example behind a course login);
-   - **(c)** swap in questions with a clear license.
+4. **Keep the "AI-generated, not medical advice" notice** on every shared copy of the demo.
 
 ## Cost and compute
 

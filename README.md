@@ -39,7 +39,7 @@ pre-registered rule, and the evidence we have leans against it.
 reasoning next to the no-hint test, the judge's check and the detector's warning badge, with
 live hint toggles for 40 questions. Building it showed the badge also fires when the answer
 merely agrees with the hint (54% of right-answer hints the model would have followed anyway).
-It is not deployed publicly yet: MedQA's license for displaying questions is unclear.
+The user confirmed the MedQA questions may be shared, so the demo data is committed.
 
 ## Setup
 
