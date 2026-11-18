@@ -387,6 +387,9 @@ them as they came out. The two negative results are informative:
 - An activation detector's training distribution shapes what it detects. It does not
   automatically carry over to other attacks.
 
+**Future work.** All four hint types use the same answer-letter features, so how the model
+weighs the source of a hint remains open.
+
 ## 6. Limitations
 
 - **One model, one dataset.** MedGemma 4B, English MedQA, greedy decoding. We did not test
