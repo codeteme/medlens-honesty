@@ -114,7 +114,11 @@ def pick_attr_features(attr_run: Path, layer: int, k: int) -> list[int]:
 
 
 def items_and_split(cfg: dict) -> tuple[list[MCQItem], dict[str, str]]:
-    items = medqa_test_not_in_mpib(cfg["n_questions"], cfg["seed"])
+    if cfg.get("items_file"):  # Phase 8: the same items, exported so MPIB stays on the Mac
+        rows = json.loads((REPO_ROOT / cfg["items_file"]).read_text())
+        items = [MCQItem(**d) for d in rows][: cfg["n_questions"]]
+    else:
+        items = medqa_test_not_in_mpib(cfg["n_questions"], cfg["seed"])
     return items, {i.id: split_of(i.id, cfg["seed"], cfg["dev_fraction"]) for i in items}
 
 

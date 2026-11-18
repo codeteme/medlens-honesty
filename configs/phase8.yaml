@@ -1,0 +1,45 @@
+# Phase 8, Part A: does the Phase 3 detector work on cues that don't name a letter?
+# Pre-registration: reports/phase8_preregistration.md
+seed: 0
+model_id: google/medgemma-4b-it
+device: auto
+n_questions: 375
+
+# Shipped to the GPU machine instead of the datasets (MPIB is gated; only MedQA items go).
+items_file: cache/phase8/items.json
+evidence_file: cache/phase8/evidence.jsonl
+check_file: cache/phase8/device_check.pt
+
+evidence:
+  model_id: Qwen/Qwen3.8-27B   # Tinker
+  max_tokens: 200
+  tries: 3                     # temperature 0, then 0.7 with seeds 1 and 2
+  max_words: 40
+
+generate:
+  batch_size: 32               # fixed: batch composition can slightly change greedy output
+  max_new_tokens: 768
+  save_every: 8                # batches; generation resumes from the saved file
+
+capture:
+  layer: 22                    # the Phase 3 post probe's layer
+  max_tokens: 1200
+  n_check: 20                  # Phase 3 runs recaptured on the GPU (device check, A3)
+
+judge:
+  model_id: Qwen/Qwen3.8-27B
+  max_tokens: 300
+
+phase3_capture: outputs/phase3_capture_postcot/20261115-142843
+phase3_answers: cache/tpu/out_stage1.jsonl
+probe: outputs/phase3_probes/20261115-153757/probe_post.joblib
+badge_threshold: 0.86          # Phase 5 (80% recall on Phase 3 out-of-fold scores)
+bootstrap: 2000
+
+debug:
+  n_questions: 3
+  generate:
+    batch_size: 4
+    max_new_tokens: 256
+  capture:
+    n_check: 3
