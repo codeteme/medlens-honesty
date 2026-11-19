@@ -1,6 +1,7 @@
 # Silent Hints in a Medical Language Model: Activations Reveal Hint-Following That the Reasoning Hides, but Steering and Injection Transfer Fail
 
-*Workshop paper draft · Duke AIPI 590 (Explainable AI) final project · 2026-11-16*
+*Workshop paper draft · Duke AIPI 590 (Explainable AI) final project · 2026-11-16, updated
+2026-11-18 with Phase 8*
 
 ## Abstract
 
@@ -18,9 +19,12 @@ what actually drove the answer. We study this in MedGemma 4B on 375 MedQA questi
   hint-following from ignored hints with AUROC 0.98 after reasoning (0.87 before it). It
   generalizes to held-out hint types and specialties. Text-only detectors score 0.56–0.72.
   However, it detects *following*, not *hiding*: it fires on most runs that admitted the hint,
-  and on 54% of right-answer hints the model would have chosen anyway.
+  and on 54% of right-answer hints the model would have chosen anyway. On hints that name the
+  option text instead of a letter its AUROC falls to 0.82–0.83, and at the warning threshold
+  it catches under 2% of silent runs.
 - **Fixing.** Removing the hint-following direction cut one-pass hint-following from 45% to
-  28%, but no internal fix lowered silent hint-following once the model reasoned.
+  28%, but no internal fix lowered silent hint-following once the model reasoned, on dev or on
+  100 untouched test questions.
 - **Injection.** The detector did not transfer to MPIB prompt-injection cases (AUROC 0.48). Our
   pre-registered test of a shared mechanism is therefore inconclusive, and the evidence leans
   against it.
@@ -53,7 +57,8 @@ We ask three questions about one open medical model, MedGemma 4B³:
   - Interventions that work on one-pass answers fail on reasoned answers (§4.4).
   - The detector does not transfer to prompt injection (§4.5).
 - A finding from building the demo: the detector reads *agreement with a suggested letter*,
-  which limits it as a faithfulness monitor (§4.6).
+  which limits it as a faithfulness monitor (§4.6). A pre-registered test with hints that do
+  not name a letter confirms it (§4.7).
 
 ## 2. Related work
 
@@ -295,8 +300,25 @@ We pre-registered the selection rules and success criteria before running anythi
 - The prompt instruction to disclose influence did not raise disclosure (4% vs 7% of
   followed answers).
 - Read literally, the dev rule would have carried "steer against, layer 17" to the test half.
-  It had zero effect on dev, so we skipped the confirmation (about 13 hours of laptop time).
-  This is a reported deviation from the pre-registration.
+  It had zero effect on dev, so at first we skipped the confirmation (about 13 hours of laptop
+  time).
+
+**Test-half check** (Phase 8, pre-registered separately; `reports/phase8.md`).
+- 100 questions from the untouched test half, all four settings above, run on the course TPU
+  with the fixes applied inside vLLM. 368 eligible wrong-hint prompts per setting.
+- A fix had to lower silent following with Holm-adjusted p < 0.05, losing at most 5 points of
+  no-hint accuracy.
+
+| Setting | Silent hint-following | Change (Holm p) | No-hint accuracy |
+|---|---|---|---|
+| No fix | 37.5% | — | 70% |
+| Prompt instruction only | 33.4% | −4.1 (0.29) | 70% |
+| Remove direction, layer 22 | 34.5% | −3.0 (0.60) | 60% |
+| Steer against direction, layer 17 | 38.3% | +0.8 (0.81) | 65% |
+| Steer against direction, layer 22 | 34.5% | −3.0 (0.60) | 66% |
+
+- **No setting passed.** Removing the layer-22 direction also broke 22% of hinted answers (cut
+  off or unparsed), so part of its small drop is broken output.
 
 ![Fix effects](figures/phase4_screen_vs_cot.png)
 
@@ -358,6 +380,34 @@ runs fall outside the followed-versus-ignored task.
 So the probe reads something like "my answer matches a letter suggested in the prompt." It
 does not read "the hint changed my answer."
 
+### 4.7 Hints that don't name a letter
+
+Every hint above names an option letter. We pre-registered a test of the frozen probe on three
+new hints, using the same 375 questions (`reports/phase8_preregistration.md`):
+- the attending and metadata hints with the option *text* in place of the letter;
+- one sentence of made-up clinical evidence for the wrong option, written by Qwen 27B and
+  rejected by code if it named any option or letter (355 questions).
+
+| Hint | Followed | Silent runs | AUROC silent vs ignored (95% CI) | Silent runs above the warning threshold |
+|---|---|---|---|---|
+| Attending, names letter | 29.9% | 84 | 0.997 (0.993–0.999) | 81% |
+| Metadata, names letter | 63.4% | 208 | 0.990 (0.977–0.998) | 91% |
+| Attending, names text | 24.1% | 68 | 0.834 (0.783–0.880) | 1.5% |
+| Metadata, names text | 48.8% | 160 | 0.818 (0.772–0.863) | 1.9% |
+| Made-up finding | 19.7% | 2 | (too few) | 0% |
+
+- **Text hints: partly transfers** (pre-registered verdict). The probe still ranks silent runs
+  above ignored ones, but its scores collapse: the median silent run scores 0.05–0.07 instead
+  of 0.99.
+- **Made-up findings: inconclusive.** They moved 20% of answers (sham 4%), but the reasoning
+  quoted the finding in 59 of 61 followed runs. The model is misled in the open, not silently.
+  The probe cannot tell followed from ignored runs here (exploratory AUROC 0.55, CI 0.47–0.63).
+
+![Detector scores by hint type](figures/phase8_scores.png)
+
+*Figure 5. Frozen probe score for each eligible wrong-hint run (logit scale). Dashed line: the
+demo's warning threshold.*
+
 ## 5. Discussion
 
 **Readout versus decision.** A recurring pattern across Phases 2 and 4 is that interventions
@@ -374,6 +424,7 @@ what it measures:
 - It fires on admitted hint-following.
 - It fires on agreement without influence.
 - It fails on injection.
+- It mostly loses its signal when the hint names the option text instead of a letter (§4.7).
 
 The most economical reading is that it detects a *match between the final answer and a
 letter suggested in the context*, which the model computes reliably. That is still useful for
@@ -394,13 +445,14 @@ weighs the source of a hint remains open.
 
 - **One model, one dataset.** MedGemma 4B, English MedQA, greedy decoding. We did not test
   larger models; an optional black-box replication with Qwen 27B was not run.
-- **Letter cues only.** Every hint names an option letter. Cues that act through content (for
-  example a misleading lab value) are untested.
+- **Mostly letter cues.** The main study's hints all name an option letter. §4.7 adds
+  text-named hints and made-up findings, but the findings were written by an LLM and checked
+  only by code.
 - **Labels from a model.** The judge was checked against two model annotators, not people.
 - **Devices.** Phase 1 generation ran on a TPU, while internals were read on the Mac. Both are
   close but not identical, and we only compare within one device.
 - **Small samples where it hurts.**
-  - Step-by-step fix checks used 24 questions per setting.
+  - Step-by-step fix checks used 24 dev and 100 test questions per setting.
   - The causal regeneration used 40 cases.
   - The injection test used 150 cases (149 readable), 39 of them moved.
 - **SAE fit.** Gemma Scope 2 was trained on base Gemma 3 4B, not MedGemma. We used residual
@@ -412,7 +464,8 @@ weighs the source of a hint remains open.
 In MedGemma 4B, hints change answers far more often than the reasoning admits (97% of the
 time, silently). The model's activations reveal hint-following that its text hides: a
 hint-blind probe reaches AUROC 0.98. But the probe tracks agreement with a suggested letter
-rather than hidden influence. Interventions that work on one-pass answers do not fix
+rather than hidden influence, and most of its signal is gone when the hint names the option
+in words. Interventions that work on one-pass answers do not fix
 reasoned ones, and the detector does not transfer to prompt injection. Activation monitors for
 faithfulness should be evaluated on reasoned outputs, on runs outside their training task,
 and on attacks they were not trained on.
@@ -421,7 +474,7 @@ and on attacks they were not trained on.
 
 All numbers come from scripts in `scripts/`, with configs in `configs/` and one report per
 phase in `reports/`. See `reports/reproducibility.md` for the checklist, run folders, compute
-and costs. Total spend was about $5.26: $4.68 on Tinker and $0.58 on TPU time.
+and costs. Total spend was about $7.80: $5.67 on Tinker and $2.13 on TPU time.
 
 ## References
 

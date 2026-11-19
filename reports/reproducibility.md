@@ -13,7 +13,8 @@ repeat the work and what to expect.
 - [x] **Hardware used:**
   - Apple M4 laptop, 24 GB unified memory, PyTorch MPS backend, bf16. All internals work
     (Phases 0 and 2–5).
-  - Course TPU v6e-1 with `vllm-tpu==0.33.0`. Bulk generation only (Phase 1).
+  - Course TPU v6e-1 with `vllm-tpu==0.33.0`. Bulk generation (Phases 1 and 8), and the
+    Phase 8 fixes applied inside vLLM (`scripts/tpu/vllm_steer.py`).
 - [x] **Secrets** go in `.env` (template: `.env.example`): a Hugging Face token and a Tinker API
   key. Never committed.
 - [x] **Gated resources:** accept the terms on Hugging Face for MedGemma
@@ -32,6 +33,7 @@ repeat the work and what to expect.
   164 dev and 211 test questions. Fixed before any Phase 4 run.
 - [x] **MPIB:** 150 V1 cases matched to 4-option MedQA by their anchor question, seed 0.
 - [x] **Demo:** the first 40 of the 375 questions. Not hand-picked.
+- [x] **Phase 8 Part B:** 100 test-half questions drawn with seed 0 (`configs/phase8_fix.yaml`).
 
 ## Determinism
 
@@ -52,6 +54,9 @@ repeat the work and what to expect.
   - the test-half confirmation was skipped because no fix survived dev;
   - the MPIB fix arm (H2) was not run;
   - two exploratory numbers were added after the results and are labelled as such.
+- [x] **Phase 8** was pre-registered in `reports/phase8_preregistration.md` (commit 75123b6)
+  before any Phase 8 generation. Deviations (TPU instead of a CUDA GPU, vLLM batching, evidence
+  checked only by code) are in `reports/phase8.md`.
 - [x] **Other scope changes** are recorded in `CLAUDE.md`:
   - judge validation by model annotators instead of hand labels;
   - the demo limited to 40 questions;
@@ -70,6 +75,7 @@ All run folders are under `outputs/`, which is not committed. Each one holds `co
 | 3 | `phase3_capture_postcot/20261115-142843`, `phase3_probes/20261115-153757`, `phase3_followups/20261115-154212` | `reports/phase3.md` |
 | 4 | `phase4_directions/20261115-163308`, `phase4_screen/20261115-164028`, `phase4_cot_dev/20261115-174147`, `phase4_mpib/20261116-101344` | `reports/phase4.md` |
 | 5 | `phase5_score_runs/20261116-171012`, `phase5_build_demo/20261116-173236` | `reports/phase5.md`, `demo/README.md` |
+| 8 | `phase8_evidence/20261118-161608`, `phase8/20261118-174441`, `phase4_cot_test/20261118-174444`, `phase4_cot_test/20261118-162234-debug` | `reports/phase8.md` |
 | Poster | reads the runs above | `poster/README.md` |
 
 Every experiment script has a `--debug` mode, roughly 3–20 examples, that runs in minutes.
@@ -85,13 +91,14 @@ Run it first.
 | 3 | Mac + Tinker judge | post-reasoning capture 67 min | $3.24 |
 | 4 | Mac + Tinker judge | screen 61 min, dev step-by-step 5.5 h (memory swapping), MPIB 75 min | $0.09 |
 | 5 | Mac | scoring 17 min (plus an 18-min attempt that was stopped) | — |
-| **Total** | | | **about $5.26** |
+| 8 | TPU + Mac + Tinker | 1.2 TPU-hours; Mac capture 3.4 h (memory swapping) | $2.54 ($0.99 Tinker + $1.55 TPU) |
+| **Total** | | | **about $7.80** |
 
 API costs are logged per run in `cost.json` or `judge_cost.json`.
 
 ## Tests and code quality
 
-- [x] 87 `pytest` tests: data processing, labels, metrics, probe folds, steering hooks, demo
+- [x] 104 `pytest` tests: data processing, labels, metrics, probe folds, steering hooks, demo
   helpers. Run with `uv run pytest`.
 - [x] `ruff` lint and format: `uv run ruff check .`.
 

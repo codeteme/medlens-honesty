@@ -55,3 +55,10 @@ def test_auroc():
     assert auroc([1, 1], [1, 1]) == 0.5
     assert auroc([2, 0], [1]) == 0.5
     assert auroc([], [1]) is None
+
+
+def test_holm():
+    from medlens.eval.stats import holm
+
+    assert holm([0.01, 0.04, 0.03, 0.2]) == pytest.approx([0.04, 0.09, 0.09, 0.2])
+    assert holm([0.5, 0.9]) == [1.0, 1.0]

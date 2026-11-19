@@ -119,6 +119,19 @@ README "What we found", and a 24 x 36 in poster (`poster/build_poster.py` -> PDF
 from the SSO poster at the user's request; every number read from saved outputs and asserted).
 The optional Qwen 27B outside check was not run.
 
+**Phase 8 (2026-11-18, follow-up after the gap review; see reports/phase8.md):** pre-registered in
+`reports/phase8_preregistration.md`. Course GPU was unavailable (503), so generation ran on the
+TPU (vLLM; fixes patched into `Gemma3DecoderLayer` by `scripts/tpu/vllm_steer.py`) and Part A
+activations were captured on the Mac, as in Phase 3.
+- Part A (375 questions, frozen post probe): letter hints AUROC 0.99; option-text hints 0.83 /
+  0.82 ("partly transfers"), but only 1.5–1.9% of silent text-hint runs cross the 0.86 badge
+  (letter: 81–91%). Made-up findings (Qwen 27B, 355 questions) moved 20% of answers but were
+  mentioned in 59/61 followed runs: inconclusive (< 10 silent).
+- Part B (100 test-half questions, 5 settings): no fix works (Holm); prompt-only 37.5% → 33.4%,
+  Holm p 0.29; ablate L22 costs 10 points of no-hint accuracy.
+- Runs: `outputs/phase8/20261118-174441`, `outputs/phase4_cot_test/20261118-174444`. Cost $2.54.
+- The user said: never credit Claude in commits.
+
 **Main hypothesis (Phase 4):** the same internal features that make 4B follow hints without admitting it also make it vulnerable to prompt injection.
 
 ## Phases

@@ -30,18 +30,23 @@ in a demo that puts the model's reasoning next to an internal warning.
 3. **The activations reveal it.** A probe on layer-22 activations, never told the hint, flags
    silently followed hints with AUROC 0.98 after reasoning (0.87 before). It works on unseen
    hint types and specialties. Text-only detectors score 0.56–0.72.
-4. **The probe flags following, not hiding.** It fires on 76% of runs that admitted the hint,
-   and on 54% of right-answer hints the model would have chosen anyway.
+4. **The probe flags following, not hiding, and leans on the letter.** It fires on 76% of runs
+   that admitted the hint, and on 54% of right-answer hints the model would have chosen anyway.
+   When the hint names the option text instead of a letter, its AUROC falls to 0.82–0.83 and
+   the warning badge catches under 2% of silent runs (Phase 8). A made-up clinical finding moved
+   20% of answers, but the reasoning almost always mentioned it.
 5. **Fixing it failed once the model reasons.** Removing the hint-following direction
    cut quick-answer hint-following from 45% to 28%. Silent following in step-by-step answers
-   stayed at 31% or got worse (pre-registered test).
+   stayed at 31% or got worse (pre-registered test). On 100 untouched test questions, no fix
+   passed either (best: 37.5% to 33.4%, Holm p = 0.29).
 6. **No detectable link to prompt injection.** On 150 MPIB injection cases, the probe could not tell
    which answers the injection changed (AUROC 0.48). The pre-registered verdict on a shared
    mechanism is inconclusive, leaning against.
 
 **Main limits:**
 - One 4B model, English multiple choice, greedy decoding.
-- Every hint names an answer letter.
+- Most hints name an answer letter; the Phase 8 hints that don't were tested only with the
+  frozen probe.
 - The judge was checked against model annotators, not people.
 - The optional Qwen 27B outside check and the human study were not run.
 

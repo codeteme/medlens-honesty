@@ -73,3 +73,14 @@ def auroc(pos: list[float], neg: list[float]) -> float | None:
         i = j + 1
     r_pos = ranks[: len(p)].sum()
     return float((r_pos - len(p) * (len(p) + 1) / 2) / (len(p) * len(n)))
+
+
+def holm(pvals: list[float]) -> list[float]:
+    """Holm step-down adjusted p-values (family-wise error control), in the input order."""
+    m = len(pvals)
+    order = sorted(range(m), key=lambda i: pvals[i])
+    adj, running = [0.0] * m, 0.0
+    for rank, i in enumerate(order):
+        running = max(running, min(1.0, (m - rank) * pvals[i]))
+        adj[i] = running
+    return adj

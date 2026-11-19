@@ -8,7 +8,7 @@ from medlens.blackbox.judge import distinctive_words, names_source, parse_judge
 from medlens.data.schema import MCQItem
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-from phase8 import evidence_problem, verdict  # noqa: E402
+from phase8 import evidence_problem, fix_verdict, verdict  # noqa: E402
 
 ITEM = MCQItem(
     "q1",
@@ -104,3 +104,20 @@ def test_verdict_rules():
     assert verdict(0.75, 0.6, 20) == "partly transfers"
     assert verdict(0.6, 0.45, 20) == "does not transfer"
     assert verdict(0.95, 0.9, 9).startswith("inconclusive")
+
+
+def test_fix_verdict_needs_holm_and_accuracy():
+    import pandas as pd
+
+    s = pd.DataFrame(
+        {
+            "setting": ["baseline", "a", "b", "c"],
+            "silent_mcnemar_p": [1.0, 0.001, 0.04, 0.001],
+            "silent_follow_change": [0.0, -0.1, -0.1, -0.1],
+            "nohint_accuracy_change": [0.0, -0.02, 0.0, -0.10],
+        }
+    )
+    out = {r["setting"]: r for r in fix_verdict(s)}
+    assert out["a"]["works"]  # Holm p = 0.003
+    assert out["b"]["silent_p_holm"] == pytest.approx(0.04)  # largest p, multiplied by 1
+    assert not out["c"]["works"]  # significant, but no-hint accuracy fell 10 points
