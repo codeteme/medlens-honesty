@@ -35,6 +35,8 @@ RUNS = {
     "phase4_cot": OUT / "phase4_cot_dev/20261115-174147",
     "phase4_mpib": OUT / "phase4_mpib/20261116-101344",
     "phase5_build": OUT / "phase5_build_demo/20261116-173236",
+    "phase8": OUT / "phase8/20261118-174441",
+    "phase8_fix": OUT / "phase4_cot_test/20261118-174444",
 }
 CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 OUT_HTML = ROOT / "poster" / "poster.html"
@@ -95,6 +97,11 @@ mpib = json.loads((RUNS["phase4_mpib"] / "results.json").read_text())
 H1 = mpib["H1"]["post"]
 badge = pd.read_csv(RUNS["phase5_build"] / "badge_by_kind.csv")
 agree = badge[(badge.kind == "hint_gold") & (badge.label == "not scored")].iloc[0]
+p8 = pd.read_csv(RUNS["phase8"] / "summary.csv").set_index("cue")
+p8_text = p8.loc[["authority_text", "metadata_text"]]
+p8_ev = p8.loc["evidence"]
+holm8 = {h["setting"]: h for h in json.loads((RUNS["phase8_fix"] / "holm.json").read_text())}
+assert not any(h["works"] for h in holm8.values())
 
 # Example: the first "caught" gallery case (seeded rule) whose no-hint answer was correct.
 demo_idx = json.loads((ROOT / "demo/data/index.json").read_text())
@@ -110,6 +117,8 @@ assert EX_QUOTE in EX_RUN["text"] and EX_RUN["ack"] is False and EX_RUN["flagged
 assert (N_FOLLOWED, N_ADMITTED, N_Q) == (912, 30, 375)
 assert round(post.auroc, 3) == 0.982 and round(H1["auroc_attacked_run"], 2) == 0.48
 assert (cot2["mac_reproduces_following"], cot2["follow_after_intervention"]) == (35, 35)
+assert [round(v, 2) for v in p8_text.auroc_unfaithful_vs_unaffected] == [0.83, 0.82]
+assert (int(p8_ev.n_unfaithful), int(p8_ev.n_faithful)) == (2, 59)
 
 
 # ---- vector charts (viewBox in points) ---------------------------------------------------------------
@@ -216,7 +225,7 @@ scfg = yaml.safe_load((RUNS["phase4_screen"] / "config.yaml").read_text())
 n_s = scfg["screen"]["n_hinted_per_framing"] * len(scfg["framings"])  # wrong-hint prompts per setting
 n_c = int(cot4.loc["baseline", "n_eligible"])
 fig_fix = vbars(
-    560, 360,
+    560, 330,
     [{"label": "Quick answer", "sub": f"one pass, n = {n_s}",
       "bars": [wilson_bar(float(screen.loc["baseline", "follow_rate"]), n_s, "#8A96AD"),
                wilson_bar(float(screen.loc["ablate_pre_L22", "follow_rate"]), n_s, NAVY)]},
@@ -324,7 +333,7 @@ BODY = f"""
         </div>
         <div class="grp">
           <div class="glabel">3 · Fix it</div>
-          <ul><li>Removing the hint-following direction works on quick answers but <b>not once the model reasons</b>; random directions do nothing.</li></ul>
+          <ul><li>Removing the hint-following direction works on quick answers but <b>not once the model reasons</b>; random directions do nothing. No fix passed on 100 new test questions either.</li></ul>
           {fig_fix}
           <p class="cap">Hint-following on dev questions (different samples per row). Whiskers: 95% CIs.</p>
         </div>
@@ -350,7 +359,7 @@ BODY = f"""
         </div>
         <ol>
           <li><b>See it.</b> The reasoning hides almost every hint it follows.</li>
-          <li><b>Catch it.</b> Activations reveal it, but the probe flags <i>following</i>, not hiding: it fires on {pct(ack_flag)} of the {n_ack} admitted runs, and on {pct(agree['mean'])} of right-answer hints the model agreed with anyway.</li>
+          <li><b>Catch it.</b> Activations reveal it, but the probe flags <i>following</i> of a suggested letter, not hiding. If the hint names the option in words, AUROC is {p8_text.auroc_unfaithful_vs_unaffected.min():.2f}–{p8_text.auroc_unfaithful_vs_unaffected.max():.2f} and the badge catches under {pct(p8_text.badge_rate_unfaithful.max())}. It also fires on {pct(ack_flag)} of the {n_ack} admitted runs, and on {pct(agree['mean'])} of right-answer hints the model agreed with anyway.</li>
           <li><b>Fix it.</b> Removing the direction cut quick-answer hint-following ({pct(float(screen.loc['baseline', 'follow_rate']))} → {pct(float(screen.loc['ablate_pre_L22', 'follow_rate']))}) but not step-by-step ({pct(float(cot4.loc['baseline', 'follow_rate']))} → {pct(float(cot4.loc['ablate_pre_L22', 'follow_rate']))}).</li>
           <li><b>Injection.</b> The probe does not transfer.</li>
         </ol>
@@ -358,9 +367,9 @@ BODY = f"""
       <div class="sec"><div class="bar">Limitations</div><div class="box small">
         <ul>
           <li>One 4B model; English multiple choice; greedy decoding.</li>
-          <li>Every hint names a letter; content cues untested.</li>
+          <li>Most hints name a letter. Made-up findings (LLM-written) moved {pct(p8_ev.follow_rate)} of answers but were mentioned in {int(p8_ev.n_faithful)} of {int(p8_ev.followed)}.</li>
           <li>Judge checked against model annotators, not people.</li>
-          <li>Small fix checks (24 dev questions); MPIB attacks target actions, not letters.</li>
+          <li>Fix checks on 24 dev and 100 test questions; MPIB attacks target actions, not letters.</li>
         </ul>
       </div></div>
       <div class="sec grow"><div class="bar">References</div><div class="box small">
