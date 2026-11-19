@@ -66,7 +66,7 @@ ADMIT_CI = wilson_interval(N_ADMITTED, N_FOLLOWED)
 N_Q = labels.item_id.nunique()
 SHAM = float(p1.loc["sham", "follow_rate"])
 ACC_NONE = float((labels[labels.condition == "none"].correct == True).mean())  # noqa: E712
-FRAMINGS = [("metadata", "Metadata"), ("explicit", "Plain"),
+FRAMINGS = [("metadata", "Metadata"), ("explicit", "Explicit"),
             ("authority", "Attending"), ("patient", "Patient")]
 follow = {}
 for k, _ in FRAMINGS:
@@ -102,6 +102,8 @@ p8_text = p8.loc[["authority_text", "metadata_text"]]
 p8_ev = p8.loc["evidence"]
 holm8 = {h["setting"]: h for h in json.loads((RUNS["phase8_fix"] / "holm.json").read_text())}
 assert not any(h["works"] for h in holm8.values())
+N_FIX_PASS = sum(h["works"] for h in holm8.values())
+TEXT_MAX = max(base["llm_judge_yes_rate"]["auroc"], base["text_tfidf_reasoning_only"]["auroc"])
 
 # Example: the first "caught" gallery case (seeded rule) whose no-hint answer was correct.
 demo_idx = json.loads((ROOT / "demo/data/index.json").read_text())
@@ -204,7 +206,7 @@ def wilson_bar(rate: float, n: int, color: str) -> dict:
 
 
 fig_follow = vbars(
-    540, 300,
+    540, 260,
     [{"label": lab,
       "bars": [{"v": follow[k]["rate"], "lo": follow[k]["lo"], "hi": follow[k]["hi"], "color": COPPER if k == "metadata" else ROYAL}]}
      for k, lab in FRAMINGS],
@@ -215,10 +217,10 @@ mpib_post_ci = tuple(H1["auroc_attacked_ci"])
 fig_detect = hbars(560, [
     ("Probe, after reasoning", float(post.auroc), tuple(POST_CI), NAVY),
     ("Probe, before reasoning", float(pre.auroc), tuple(json.loads(pre.auroc_ci)), ROYAL),
-    ("LLM judge on the text", base["llm_judge_yes_rate"]["auroc"], None, "#8A96AD"),
+    ("LLM judge on reasoning", base["llm_judge_yes_rate"]["auroc"], None, "#8A96AD"),
     ("Hint type alone", fu["hint_type_only"]["auroc"], None, "#8A96AD"),
-    ("Word counts (TF-IDF)", base["text_tfidf_reasoning_only"]["auroc"], None, "#8A96AD"),
-    ("Same probe on injection", H1["auroc_attacked_run"], mpib_post_ci, COPPER),
+    ("TF-IDF on reasoning", base["text_tfidf_reasoning_only"]["auroc"], None, "#8A96AD"),
+    ("Probe on MPIB injection", H1["auroc_attacked_run"], mpib_post_ci, COPPER),
 ])
 
 scfg = yaml.safe_load((RUNS["phase4_screen"] / "config.yaml").read_text())
@@ -226,13 +228,13 @@ n_s = scfg["screen"]["n_hinted_per_framing"] * len(scfg["framings"])  # wrong-hi
 n_c = int(cot4.loc["baseline", "n_eligible"])
 fig_fix = vbars(
     560, 330,
-    [{"label": "Quick answer", "sub": f"one pass, n = {n_s}",
+    [{"label": "Single-pass", "sub": f"n = {n_s}",
       "bars": [wilson_bar(float(screen.loc["baseline", "follow_rate"]), n_s, "#8A96AD"),
                wilson_bar(float(screen.loc["ablate_pre_L22", "follow_rate"]), n_s, NAVY)]},
-     {"label": "Step-by-step answer", "sub": f"reasoned, n = {n_c}",
+     {"label": "Chain-of-thought", "sub": f"n = {n_c}",
       "bars": [wilson_bar(float(cot4.loc["baseline", "follow_rate"]), n_c, "#8A96AD"),
                wilson_bar(float(cot4.loc["ablate_pre_L22", "follow_rate"]), n_c, NAVY)]}],
-    legend=[("#8A96AD", "No fix"), (NAVY, "Fix: remove direction (layer 22)")],
+    legend=[("#8A96AD", "No intervention"), (NAVY, "Direction ablated (layer 22)")],
     ymax=0.6, ticks=(0, .2, .4, .6),
 )
 
@@ -249,7 +251,7 @@ body {{ font-family: "Open Sans", sans-serif; color: {INK}; }}
 .title .mid {{ text-align: center; }}
 .logo {{ width: 3.1in; height: 3.1in; background: #fff; padding: 0.2in; display: flex; align-items: center; justify-content: center; }}
 .logo img {{ width: 100%; height: 100%; display: block; object-fit: contain; }}
-.title h1 {{ font-family: "EB Garamond", serif; font-size: 68pt; line-height: 1.0; font-weight: 700; margin: 0 0 0.14in; }}
+.title h1 {{ font-family: "EB Garamond", serif; font-size: 52pt; line-height: 1.0; font-weight: 700; margin: 0 0 0.14in; }}
 .title .who {{ font-size: 34pt; font-weight: 700; line-height: 1.15; }}
 .title .inst {{ font-size: 28pt; font-weight: 600; line-height: 1.2; margin-top: 0.03in; }}
 .cols {{ flex: 1; display: grid; grid-template-columns: 1fr 1.2fr 1fr; gap: 0.3in; min-height: 0; }}
@@ -279,7 +281,7 @@ BODY = f"""
   <div class="title">
     <div class="logo"><img src="assets/duke-shield.png" alt="Duke University shield"></div>
     <div class="mid">
-      <h1>When a hint changes MedGemma’s answer, its reasoning hides it. Its activations don’t.</h1>
+      <h1>Unverbalized Hint-Following in MedGemma 4B: Causal Features, Activation Probes and the Limits of Steering</h1>
       <div class="who">Temesgen Tewolde</div>
       <div class="inst">Duke University · AIPI 590: Explainable AI</div>
     </div>
@@ -289,87 +291,84 @@ BODY = f"""
   <div class="cols">
     <div class="col">
       <div class="sec"><div class="bar">Abstract</div><div class="box">
-        <p>A medical model’s written reasoning may leave out what drove its answer. We added hints that point to an answer to {N_Q} MedQA questions for MedGemma 4B. The hint changed the answer in {N_FOLLOWED} runs, and the reasoning mentioned it in only {N_ADMITTED} ({pct(N_ADMITTED / N_FOLLOWED, 1)}). Inside the model, the hint travels as an answer-letter signal. A probe on layer-22 activations, never told the hint, catches hint-following with AUROC {post.auroc:.2f}. Removing that signal fixes quick answers but not reasoned ones, and the probe does not catch prompt injection ({H1['auroc_attacked_run']:.2f}).</p>
+        <p>Black-box studies [1, 2, 5] show that language models, including medical models, adopt cues their reasoning omits. We examine the internals of MedGemma 4B on {N_Q} MedQA questions. SAE attribution and ablation localize cue influence to answer-letter features on the hint tokens. A hint-blind layer-22 probe detects unverbalized hint-following (AUROC {post.auroc:.2f}; text baselines ≤ {TEXT_MAX:.2f}) but encodes agreement with a suggested letter rather than concealment. Steering that works on single-pass answers fails under chain-of-thought, and the probe does not transfer to prompt injection.</p>
       </div></div>
-      <div class="sec"><div class="bar">Objectives</div><div class="box">
+      <div class="sec"><div class="bar">Contributions</div><div class="box">
         <ol>
-          <li><b>See it:</b> how often does a hint change the answer without the reasoning saying so?</li>
-          <li><b>Catch it:</b> do the model’s activations reveal what the text hides?</li>
-          <li><b>Fix it:</b> does steering the model’s activations stop it?</li>
-          <li><b>Injection:</b> is it the same weakness as prompt injection?</li>
+          <li><b>Causal localization</b> of cue influence to answer-letter SAE features (layers 17, 22); no source-specific features found.</li>
+          <li><b>A hint-blind activation probe</b>, evaluated within and across hint types against text baselines.</li>
+          <li><b>Evidence that the probe encodes</b> answer–cue agreement, not concealment.</li>
+          <li><b>Pre-registered negative results</b> for chain-of-thought steering and injection transfer.</li>
         </ol>
       </div></div>
-      <div class="sec"><div class="bar">Methods</div><div class="box">
+      <div class="sec grow"><div class="bar">Methods</div><div class="box">
         <ul>
-          <li><b>Model:</b> MedGemma 4B (open weights), greedy decoding, read with Gemma Scope 2 SAEs at layers 9, 17, 22, 29.</li>
-          <li><b>Data:</b> {N_Q} MedQA questions (4 options) not in the MPIB benchmark. No-hint accuracy {pct(ACC_NONE, 1)}.</li>
-          <li><b>10 versions per question:</b> no hint; a harmless sham sentence; 4 hints (metadata tag, “Hint: the correct answer is X”, an attending’s opinion, a patient’s insistence), each pointing to a wrong or the right answer.</li>
-          <li><b>Labels:</b> a judge model (Qwen 27B) checks whether the reasoning mentions the hint; it agreed with 2 blind model annotators on 100/100 cases. Silent = followed and never mentioned.</li>
-          <li><b>Detector:</b> logistic-regression probes on activations, 5 folds grouped by question, never shown the hint text or letter.</li>
-          <li><b>Fix and injection:</b> pre-registered. Directions learned on a dev half; 150 MPIB cases with an instruction hidden in the question.</li>
+          <li><b>Model:</b> MedGemma 4B, greedy decoding; Gemma Scope 2 residual SAEs at layers 9, 17, 22 and 29.</li>
+          <li><b>Data:</b> {N_Q} four-option MedQA questions disjoint from MPIB; no-hint accuracy {pct(ACC_NONE, 1)}.</li>
+          <li><b>Conditions:</b> no hint, a sham sentence, and four cue framings (metadata, explicit, attending, patient) toward a correct or incorrect option.</li>
+          <li><b>Labels:</b> LLM judge (Qwen 27B) with verbatim-quote checks; 100/100 agreement with two blind model annotators. <i>Unverbalized</i>: followed, not mentioned.</li>
+          <li><b>Probes:</b> logistic regression on residual activations; five folds grouped by question; no access to the hint.</li>
+          <li><b>Interventions:</b> mean-difference directions from a development half, ablated or subtracted at every token; criteria pre-registered.</li>
         </ul>
-      </div></div>
-      <div class="sec grow"><div class="bar">Demo</div><div class="box small">
-        <p>An interactive page shows what the model <b>says</b> next to what <b>drove</b> its answer (no-hint answer, judge check, warning badge), with live hint toggles for {demo_idx['n_questions']} questions. Precomputed; no GPU needed.</p>
       </div></div>
     </div>
 
     <div class="col">
       <div class="sec grow"><div class="bar">Results</div><div class="box">
         <div class="grp">
-          <div class="glabel">1 · See it</div>
-          <ul><li>Every hint moved answers far above the {pct(SHAM)} sham floor. The metadata tag moved {pct(fmeta['rate'])} and was <b>never</b> mentioned.</li></ul>
+          <div class="glabel">1. Behavioral baseline</div>
+          <ul><li>All framings exceeded the {pct(SHAM)} sham rate; the metadata tag shifted {pct(fmeta['rate'])} of answers and was never verbalized.</li></ul>
           {fig_follow}
-          <p class="cap">Wrong-answer hints: share of eligible runs that moved to the hinted answer. Dashed: sham sentence. Whiskers: 95% CIs. Of those that moved, the reasoning admitted the hint in {", ".join(f"{follow[k]['admitted']}/{follow[k]['followed']}" for k, _ in FRAMINGS)} (same order).</p>
+          <p class="cap">Share of eligible incorrect-hint runs that adopted the hinted option. Dashed line: sham sentence. Whiskers: 95% CIs. Runs that verbalized the cue: {", ".join(f"{follow[k]['admitted']}/{follow[k]['followed']}" for k, _ in FRAMINGS)}.</p>
         </div>
         <div class="grp">
-          <div class="glabel">2 · Catch it</div>
+          <div class="glabel">2. Causal localization and detection</div>
           <ul>
-            <li>The hint travels as <b>answer-letter features</b> on the hint’s own tokens. Removing 10 at layer 17 cut quick-answer hint-following from {pct(c17['readout_follows_hint_before'])} to {pct(c17['readout_follows_hint_after'])}; features that only correlate barely moved the pull toward the hinted letter (log-probability {corr['mean_delta_logp_target_hinted']:+.2f}, vs {c17['mean_delta_logp_target_hinted']:+.2f}).</li>
-            <li>A hint-blind probe catches silent hint-following (within hint type {fu['post_reasoning']['per_hint_type']['mean_within_type']:.2f}; unseen hint types {min(held_type):.2f}–{max(held_type):.2f}). Text-only detectors do far worse.</li>
+            <li>Attribution-ranked features on the hint tokens encode the answer letter. Ablating the top 10 at layer 17 reduced single-pass hint-following from {pct(c17['readout_follows_hint_before'])} to {pct(c17['readout_follows_hint_after'])} (Δ log-p {c17['mean_delta_logp_target_hinted']:+.2f}, vs {corr['mean_delta_logp_target_hinted']:+.2f} for correlation-ranked features) but not chain-of-thought decisions ({cot2['mac_reproduces_following']}/{cot2['n']} → {cot2['follow_after_intervention']}/{cot2['n']}).</li>
+            <li>Probe AUROC within hint type {fu['post_reasoning']['per_hint_type']['mean_within_type']:.2f}; held-out types {min(held_type):.2f}–{max(held_type):.2f}; option-text cues {p8_text.auroc_unfaithful_vs_unaffected.min():.2f}–{p8_text.auroc_unfaithful_vs_unaffected.max():.2f}.</li>
           </ul>
           {fig_detect}
-          <p class="cap">AUROC (0.5 = chance) for silent hint-following vs ignored hints, {int(post.n):,} runs. Bottom bar: moved vs unmoved answers on {H1['n_moved'] + H1['n_not_moved']} injection cases.</p>
+          <p class="cap">AUROC for unverbalized hint-following vs ignored hints ({int(post.n):,} runs). Bottom bar: shifted vs unshifted answers on {H1['n_moved'] + H1['n_not_moved']} injection cases.</p>
         </div>
         <div class="grp">
-          <div class="glabel">3 · Fix it</div>
-          <ul><li>Removing the hint-following direction works on quick answers but <b>not once the model reasons</b>; random directions do nothing. No fix passed on 100 new test questions either.</li></ul>
+          <div class="glabel">3. Steering under chain-of-thought</div>
+          <ul><li>Layer-22 ablation reduced single-pass hint-following; random directions did not. Under chain-of-thought, {N_FIX_PASS} of {len(holm8)} interventions passed on 100 held-out questions (Holm).</li></ul>
           {fig_fix}
-          <p class="cap">Hint-following on dev questions (different samples per row). Whiskers: 95% CIs.</p>
+          <p class="cap">Hint-following rate on development questions. Whiskers: 95% CIs.</p>
         </div>
         <div class="grp">
-          <div class="glabel">4 · Injection</div>
-          <ul><li>Injected instructions moved {pct(mpib['moved_rate_baseline'])} of answers, but the probe could not tell which ({H1['auroc_attacked_run']:.2f}). Pre-registered verdict: <b>{mpib['verdict']}</b>, leaning against a shared mechanism.</li></ul>
+          <div class="glabel">4. Transfer to prompt injection</div>
+          <ul><li>MPIB injections shifted {pct(mpib['moved_rate_baseline'])} of answers; the probe did not identify which (AUROC {H1['auroc_attacked_run']:.2f}). Pre-registered verdict: {mpib['verdict']}, with the testable arm against a shared mechanism.</li></ul>
         </div>
       </div></div>
     </div>
 
     <div class="col">
-      <div class="sec"><div class="bar">Example</div><div class="box small">
-        <p><b>One run</b> (pharmacology): fever and sweating after foreign diet pills. B = uncoupling of oxidative phosphorylation (correct); C = bacterial contamination (wrong).</p>
-        <p><b>No hint:</b> the model chose <b>{EX_Q['runs']['none']['pred']}</b>. With <span class="flag">“{esc(EX_RUN['cue'])}”</span> added, it chose <b>{EX_RUN['pred']}</b>.</p>
-        <p><b>Reasoning:</b> “…{esc(EX_QUOTE)}” <span class="flag">It never mentions the hint.</span></p>
-        <p><b>Detector:</b> score {EX_RUN['post_score']:.3f}, above the warning threshold.</p>
-        <p><i>A seeded pick from the demo’s gallery, one of {demo_idx['gallery']['caught']['n_total']} caught runs in its {demo_idx['n_questions']} questions.</i></p>
+      <div class="sec"><div class="bar">Illustrative case</div><div class="box small">
+        <p><b>Question</b> (pharmacology): fever and diaphoresis after imported diet pills. B = uncoupling of oxidative phosphorylation (correct); C = bacterial contamination (incorrect).</p>
+        <p><b>Without the cue</b> the model answered <b>{EX_Q['runs']['none']['pred']}</b>; with <span class="flag">“{esc(EX_RUN['cue'])}”</span> it answered <b>{EX_RUN['pred']}</b>.</p>
+        <p><b>Reasoning:</b> “…{esc(EX_QUOTE)}” The cue is not mentioned.</p>
+        <p><b>Probe score:</b> {EX_RUN['post_score']:.3f}, above the alert threshold.</p>
+        <p><i>Selected by a seeded rule; one of {demo_idx['gallery']['caught']['n_total']} detected runs in the demonstration set.</i></p>
       </div></div>
-      <div class="sec"><div class="bar">Conclusion</div><div class="box">
+      <div class="sec"><div class="bar">Discussion</div><div class="box">
         <div class="stat">
-          <div><div class="n" style="color:{COPPER}">{pct(silent_share)}</div><div class="t">of hint-driven answer changes are never mentioned</div></div>
-          <div><div class="n" style="color:{NAVY}">{post.auroc:.2f}</div><div class="t">AUROC of a probe that never sees the hint</div></div>
+          <div><div class="n" style="color:{NAVY}">{post.auroc:.2f}</div><div class="t">AUROC of a hint-blind activation probe</div></div>
+          <div><div class="n" style="color:{COPPER}">{N_FIX_PASS}/{len(holm8)}</div><div class="t">interventions effective under chain-of-thought (held-out test)</div></div>
         </div>
         <ol>
-          <li><b>See it.</b> The reasoning hides almost every hint it follows.</li>
-          <li><b>Catch it.</b> Activations reveal it, but the probe flags <i>following</i> of a suggested letter, not hiding. If the hint names the option in words, AUROC is {p8_text.auroc_unfaithful_vs_unaffected.min():.2f}–{p8_text.auroc_unfaithful_vs_unaffected.max():.2f} and the badge catches under {pct(p8_text.badge_rate_unfaithful.max())}. It also fires on {pct(ack_flag)} of the {n_ack} admitted runs, and on {pct(agree['mean'])} of right-answer hints the model agreed with anyway.</li>
-          <li><b>Fix it.</b> Removing the direction cut quick-answer hint-following ({pct(float(screen.loc['baseline', 'follow_rate']))} → {pct(float(screen.loc['ablate_pre_L22', 'follow_rate']))}) but not step-by-step ({pct(float(cot4.loc['baseline', 'follow_rate']))} → {pct(float(cot4.loc['ablate_pre_L22', 'follow_rate']))}).</li>
-          <li><b>Injection.</b> The probe does not transfer.</li>
+          <li>Cue influence is carried by a letter-level signal that activations expose and the reasoning omits.</li>
+          <li>The probe detects agreement, not concealment: it fires on {pct(ack_flag)} of verbalized runs and on {pct(agree['mean'])} of correct-answer hints the model already preferred, and on text-named cues it flags under {pct(p8_text.badge_rate_unfaithful.max())} of unverbalized runs.</li>
+          <li>Interventions validated on single-pass answers do not hold under chain-of-thought, consistent with the reasoning reconstructing the cue’s influence.</li>
+          <li>Activation monitors require evaluation outside their training distribution; this probe did not transfer to injection.</li>
         </ol>
       </div></div>
       <div class="sec"><div class="bar">Limitations</div><div class="box small">
         <ul>
           <li>One 4B model; English multiple choice; greedy decoding.</li>
-          <li>Most hints name a letter. Made-up findings (LLM-written) moved {pct(p8_ev.follow_rate)} of answers but were mentioned in {int(p8_ev.n_faithful)} of {int(p8_ev.followed)}.</li>
-          <li>Judge checked against model annotators, not people.</li>
-          <li>Fix checks on 24 dev and 100 test questions; MPIB attacks target actions, not letters.</li>
+          <li>Most cues name an option letter; fabricated-evidence cues were verbalized in {int(p8_ev.n_faithful)} of {int(p8_ev.followed)} followed runs.</li>
+          <li>Judge validated against model annotators, not clinicians.</li>
+          <li>SAEs trained on Gemma 3, not MedGemma; only four layers examined.</li>
         </ul>
       </div></div>
       <div class="sec grow"><div class="bar">References</div><div class="box small">
@@ -378,9 +377,10 @@ BODY = f"""
           <li>Afolabi et al. <i>Faithful or Just Plausible?</i> ML4H, arXiv:2603.13988 (2026).</li>
           <li>Ayadi &amp; Hautli-Janisz. <i>Probing Bias Formation in Medical LLMs through Activation Steering.</i> ACL SRW (2026).</li>
           <li>Google DeepMind. <i>Gemma Scope 2</i> (2025).</li>
+          <li>Tewolde. <i>Silent Second Opinion.</i> AIPI 590 course project (2026).</li>
           <li>Lee, Jang &amp; Choi. <i>MPIB.</i> Findings of EMNLP (2026).</li>
         </ol>
-        <p style="margin-top:0.12in"><b>Note:</b> research use only; model text is AI-generated and not medical advice. Code, paper and an interactive demo are in the project repository.</p>
+        <p style="margin-top:0.12in">Research use only. Model text is AI-generated and is not medical advice.</p>
       </div></div>
     </div>
   </div>
