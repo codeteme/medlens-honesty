@@ -215,12 +215,12 @@ fig_follow = vbars(
 
 mpib_post_ci = tuple(H1["auroc_attacked_ci"])
 fig_detect = hbars(560, [
-    ("Probe, after reasoning", float(post.auroc), tuple(POST_CI), NAVY),
-    ("Probe, before reasoning", float(pre.auroc), tuple(json.loads(pre.auroc_ci)), ROYAL),
-    ("LLM judge on reasoning", base["llm_judge_yes_rate"]["auroc"], None, "#8A96AD"),
+    ("Classifier, after", float(post.auroc), tuple(POST_CI), NAVY),
+    ("Classifier, before", float(pre.auroc), tuple(json.loads(pre.auroc_ci)), ROYAL),
+    ("AI judge on reasoning", base["llm_judge_yes_rate"]["auroc"], None, "#8A96AD"),
     ("Hint type alone", fu["hint_type_only"]["auroc"], None, "#8A96AD"),
-    ("TF-IDF on reasoning", base["text_tfidf_reasoning_only"]["auroc"], None, "#8A96AD"),
-    ("Probe on MPIB injection", H1["auroc_attacked_run"], mpib_post_ci, COPPER),
+    ("Word counts in reasoning", base["text_tfidf_reasoning_only"]["auroc"], None, "#8A96AD"),
+    ("Classifier on injection", H1["auroc_attacked_run"], mpib_post_ci, COPPER),
 ])
 
 scfg = yaml.safe_load((RUNS["phase4_screen"] / "config.yaml").read_text())
@@ -228,13 +228,13 @@ n_s = scfg["screen"]["n_hinted_per_framing"] * len(scfg["framings"])  # wrong-hi
 n_c = int(cot4.loc["baseline", "n_eligible"])
 fig_fix = vbars(
     560, 330,
-    [{"label": "Single-pass", "sub": f"n = {n_s}",
+    [{"label": "One-word answer", "sub": f"n = {n_s}",
       "bars": [wilson_bar(float(screen.loc["baseline", "follow_rate"]), n_s, "#8A96AD"),
                wilson_bar(float(screen.loc["ablate_pre_L22", "follow_rate"]), n_s, NAVY)]},
-     {"label": "Chain-of-thought", "sub": f"n = {n_c}",
+     {"label": "Step-by-step answer", "sub": f"n = {n_c}",
       "bars": [wilson_bar(float(cot4.loc["baseline", "follow_rate"]), n_c, "#8A96AD"),
                wilson_bar(float(cot4.loc["ablate_pre_L22", "follow_rate"]), n_c, NAVY)]}],
-    legend=[("#8A96AD", "No intervention"), (NAVY, "Direction ablated (layer 22)")],
+    legend=[("#8A96AD", "No fix"), (NAVY, "Hint direction removed (layer 22)")],
     ymax=0.6, ticks=(0, .2, .4, .6),
 )
 
@@ -260,10 +260,10 @@ body {{ font-family: "Open Sans", sans-serif; color: {INK}; }}
 .sec.grow {{ flex: 1; }}
 .bar {{ background: {NAVY}; color: #fff; font-weight: 700; font-size: 38pt; line-height: 1; padding: 0.15in 0.22in; flex: none; }}
 .box {{ border: 0.045in solid {GRID}; padding: 0.2in 0.26in; flex: 1; min-height: 0; }}
-.box p, .box li {{ font-size: 24.5pt; line-height: 1.26; margin: 0 0 0.1in; }}
+.box p, .box li {{ font-size: 22.5pt; line-height: 1.26; margin: 0 0 0.1in; }}
 .box ul, .box ol {{ margin: 0; padding-left: 0.36in; }}
 .box li {{ margin-bottom: 0.11in; }}
-.small p, .small li {{ font-size: 21.5pt; margin-bottom: 0.08in; }}
+.small p, .small li {{ font-size: 20.5pt; margin-bottom: 0.08in; }}
 .cap {{ font-size: 21pt; line-height: 1.25; color: {MUTED}; margin: 0.04in 0 0.12in; }}
 .flag {{ color: {COPPER}; font-weight: 700; }}
 .stat {{ background: {PANEL}; padding: 0.14in 0.2in; margin: 0.06in 0 0.14in; display: grid; grid-template-columns: 1fr 1fr; gap: 0.2in; }}
@@ -281,7 +281,7 @@ BODY = f"""
   <div class="title">
     <div class="logo"><img src="assets/duke-shield.png" alt="Duke University shield"></div>
     <div class="mid">
-      <h1>Unverbalized Hint-Following in MedGemma 4B: Causal Features, Activation Probes and the Limits of Steering</h1>
+      <h1>What a Medical AI Model’s Internal Activity Shows When a Hint Silently Changes Its Answer</h1>
       <div class="who">Temesgen Tewolde</div>
       <div class="inst">Duke University · AIPI 590: Explainable AI</div>
     </div>
@@ -291,24 +291,25 @@ BODY = f"""
   <div class="cols">
     <div class="col">
       <div class="sec"><div class="bar">Abstract</div><div class="box">
-        <p>Black-box studies [1, 2, 5] show that language models, including medical models, adopt cues their reasoning omits. We examine the internals of MedGemma 4B on {N_Q} MedQA questions. SAE attribution and ablation localize cue influence to answer-letter features on the hint tokens. A classifier trained on internal activations, without access to the hint, identifies answers that followed the hint without acknowledging it (AUROC {post.auroc:.2f}, versus at most {TEXT_MAX:.2f} for classifiers that read the written reasoning). However, it responds whenever the answer matches the suggested option, including when the hint is acknowledged, so it does not detect concealment as such. Steering that works on single-pass answers fails under chain-of-thought, and the probe does not transfer to prompt injection.</p>
+        <p>Earlier studies [1, 2], including our own [5], showed that AI models often switch answers because of a hint in the prompt, while their written reasoning never mentions it. This project looks inside the model to see how that happens. On {N_Q} medical exam questions with MedGemma 4B, we found that the hint is carried inside the model mainly as “which answer letter was suggested.” A classifier that reads the model’s internal activity spots hint-following far better than tools that read the written reasoning, but it reacts to any answer that matches the hint, not specifically to hiding. Steering the model’s internal activity fixes one-word answers but not step-by-step ones, and the classifier does not catch prompt-injection attacks.</p>
       </div></div>
-      <div class="sec"><div class="bar">Contributions</div><div class="box">
+      <div class="sec"><div class="bar">What is new</div><div class="box">
         <ol>
-          <li><b>Causal localization</b> of cue influence to answer-letter SAE features (layers 17, 22); no source-specific features found.</li>
-          <li><b>A hint-blind activation probe</b>, evaluated within and across hint types against text baselines.</li>
-          <li><b>Evidence that the probe encodes</b> answer–cue agreement, not concealment.</li>
-          <li><b>Pre-registered negative results</b> for chain-of-thought steering and injection transfer.</li>
+          <li>We locate where the hint’s effect is carried inside the model: features that stand for the suggested answer letter. We found none that stand for who gave the hint.</li>
+          <li>We build a classifier from internal activity that never sees the hint, and test it on hint styles it was not trained on.</li>
+          <li>We show what that classifier really detects: agreement with the hint, not hiding.</li>
+          <li>With plans fixed in advance, we test whether steering fixes the problem and whether the same signal flags prompt injection. Neither works.</li>
         </ol>
       </div></div>
       <div class="sec grow"><div class="bar">Methods</div><div class="box">
         <ul>
-          <li><b>Model:</b> MedGemma 4B, greedy decoding; Gemma Scope 2 residual SAEs at layers 9, 17, 22 and 29.</li>
-          <li><b>Data:</b> {N_Q} four-option MedQA questions disjoint from MPIB; no-hint accuracy {pct(ACC_NONE, 1)}.</li>
-          <li><b>Conditions:</b> no hint, a sham sentence, and four cue framings (metadata, explicit, attending, patient) toward a correct or incorrect option.</li>
-          <li><b>Labels:</b> LLM judge (Qwen 27B) with verbatim-quote checks; 100/100 agreement with two blind model annotators. <i>Unverbalized</i>: followed, not mentioned.</li>
-          <li><b>Probes:</b> logistic regression on residual activations; five folds grouped by question; no access to the hint.</li>
-          <li><b>Interventions:</b> mean-difference directions from a development half, ablated or subtracted at every token; criteria pre-registered.</li>
+          <li><b>Model:</b> MedGemma 4B, Google’s open medical model. Gemma Scope 2 breaks its internal activity into readable features.</li>
+          <li><b>Questions:</b> {N_Q} four-option medical licensing exam questions (MedQA). With no hint the model gets {pct(ACC_NONE, 1)} right.</li>
+          <li><b>Hints:</b> each question is asked with no hint, a harmless filler sentence (the baseline), and four hint styles: a metadata tag, “Hint: the answer is X”, an attending physician’s opinion, and a patient’s insistence.</li>
+          <li><b>Labels:</b> a second AI model (Qwen 27B) checks whether the reasoning mentions the hint and must quote the exact words. <i>Hidden</i> means the model followed the hint and never mentioned it.</li>
+          <li><b>Classifier:</b> a simple model trained on internal activity and tested only on questions it never saw.</li>
+          <li><b>Score:</b> AUROC, where 0.5 is guessing and 1.0 is perfect.</li>
+          <li><b>Steering:</b> we found the internal direction that separates following from ignoring the hint, then removed it or pushed against it. Success rules were written down before running.</li>
         </ul>
       </div></div>
     </div>
@@ -316,59 +317,59 @@ BODY = f"""
     <div class="col">
       <div class="sec grow"><div class="bar">Results</div><div class="box">
         <div class="grp">
-          <div class="glabel">1. Behavioral baseline</div>
-          <ul><li>All framings exceeded the {pct(SHAM)} sham rate; the metadata tag shifted {pct(fmeta['rate'])} of answers and was never verbalized.</li></ul>
+          <div class="glabel">1. How often hints change answers</div>
+          <ul><li>Every hint style changed more answers than the filler sentence ({pct(SHAM)}). The metadata tag changed {pct(fmeta['rate'])} of answers and was never mentioned.</li></ul>
           {fig_follow}
-          <p class="cap">Share of eligible incorrect-hint runs that adopted the hinted option. Dashed line: sham sentence. Whiskers: 95% CIs. Runs that verbalized the cue: {", ".join(f"{follow[k]['admitted']}/{follow[k]['followed']}" for k, _ in FRAMINGS)}.</p>
+          <p class="cap">Share of answers that switched to the hinted (wrong) option. Dashed line: filler sentence. Bars show 95% confidence intervals. Times the reasoning mentioned the hint: {", ".join(f"{follow[k]['admitted']}/{follow[k]['followed']}" for k, _ in FRAMINGS)}.</p>
         </div>
         <div class="grp">
-          <div class="glabel">2. Causal localization and detection</div>
+          <div class="glabel">2. Where the hint is carried, and detecting it</div>
           <ul>
-            <li>Attribution-ranked features on the hint tokens encode the answer letter. Ablating the top 10 at layer 17 reduced single-pass hint-following from {pct(c17['readout_follows_hint_before'])} to {pct(c17['readout_follows_hint_after'])} (Δ log-p {c17['mean_delta_logp_target_hinted']:+.2f}, vs {corr['mean_delta_logp_target_hinted']:+.2f} for correlation-ranked features) but not chain-of-thought decisions ({cot2['mac_reproduces_following']}/{cot2['n']} → {cot2['follow_after_intervention']}/{cot2['n']}).</li>
-            <li>Probe AUROC within hint type {fu['post_reasoning']['per_hint_type']['mean_within_type']:.2f}; held-out types {min(held_type):.2f}–{max(held_type):.2f}; option-text cues {p8_text.auroc_unfaithful_vs_unaffected.min():.2f}–{p8_text.auroc_unfaithful_vs_unaffected.max():.2f}.</li>
+            <li>The features that carry the hint stand for the suggested answer letter. Switching off the top 10 lowered hint-following in one-word answers from {pct(c17['readout_follows_hint_before'])} to {pct(c17['readout_follows_hint_after'])}, but step-by-step answers did not change ({cot2['follow_after_intervention']} of {cot2['n']} still followed the hint).</li>
+            <li>The classifier scores {post.auroc:.2f} and works on hint styles it never trained on ({min(held_type):.2f}–{max(held_type):.2f}). When the hint names the answer in words instead of a letter, it drops to {p8_text.auroc_unfaithful_vs_unaffected.min():.2f}–{p8_text.auroc_unfaithful_vs_unaffected.max():.2f}.</li>
           </ul>
           {fig_detect}
-          <p class="cap">AUROC for unverbalized hint-following vs ignored hints ({int(post.n):,} runs). Bottom bar: shifted vs unshifted answers on {H1['n_moved'] + H1['n_not_moved']} injection cases.</p>
+          <p class="cap">How well each method separates hidden hint-following from ignored hints ({int(post.n):,} answers). Classifier read after or before the reasoning. Bottom bar: the same classifier on {H1['n_moved'] + H1['n_not_moved']} prompt-injection cases.</p>
         </div>
         <div class="grp">
-          <div class="glabel">3. Steering under chain-of-thought</div>
-          <ul><li>Layer-22 ablation reduced single-pass hint-following; random directions did not. Under chain-of-thought, {N_FIX_PASS} of {len(holm8)} interventions passed on 100 held-out questions (Holm).</li></ul>
+          <div class="glabel">3. Trying to fix it by steering</div>
+          <ul><li>Removing the hint direction cut hint-following in one-word answers from {pct(float(screen.loc['baseline', 'follow_rate']))} to {pct(float(screen.loc['ablate_pre_L22', 'follow_rate']))}; random directions did nothing. When the model reasons step by step, {N_FIX_PASS} of {len(holm8)} methods reduced hidden hint-following on 100 new questions.</li></ul>
           {fig_fix}
-          <p class="cap">Hint-following rate on development questions. Whiskers: 95% CIs.</p>
+          <p class="cap">Hint-following with and without the fix, on the first set of questions. Bars show 95% confidence intervals.</p>
         </div>
         <div class="grp">
-          <div class="glabel">4. Transfer to prompt injection</div>
-          <ul><li>MPIB injections shifted {pct(mpib['moved_rate_baseline'])} of answers; the probe did not identify which (AUROC {H1['auroc_attacked_run']:.2f}). Pre-registered verdict: {mpib['verdict']}, with the testable arm against a shared mechanism.</li></ul>
+          <div class="glabel">4. Prompt injection</div>
+          <ul><li>Hidden instructions inside the question (MPIB) changed {pct(mpib['moved_rate_baseline'])} of answers, but the classifier could not tell which ones ({H1['auroc_attacked_run']:.2f}, no better than guessing).</li></ul>
         </div>
       </div></div>
     </div>
 
     <div class="col">
-      <div class="sec"><div class="bar">Illustrative case</div><div class="box small">
-        <p><b>Question</b> (pharmacology): fever and diaphoresis after imported diet pills. B = uncoupling of oxidative phosphorylation (correct); C = bacterial contamination (incorrect).</p>
-        <p><b>Without the cue</b> the model answered <b>{EX_Q['runs']['none']['pred']}</b>; with <span class="flag">“{esc(EX_RUN['cue'])}”</span> it answered <b>{EX_RUN['pred']}</b>.</p>
-        <p><b>Reasoning:</b> “…{esc(EX_QUOTE)}” The cue is not mentioned.</p>
-        <p><b>Probe score:</b> {EX_RUN['post_score']:.3f}, above the alert threshold.</p>
-        <p><i>Selected by a seeded rule; one of {demo_idx['gallery']['caught']['n_total']} detected runs in the demonstration set.</i></p>
+      <div class="sec"><div class="bar">Example</div><div class="box small">
+        <p><b>Question</b> (pharmacology): fever and sweating after taking imported diet pills. B = uncoupling of oxidative phosphorylation (correct); C = bacterial contamination (wrong).</p>
+        <p><b>Without the hint</b> the model answered <b>{EX_Q['runs']['none']['pred']}</b>. With <span class="flag">“{esc(EX_RUN['cue'])}”</span> it answered <b>{EX_RUN['pred']}</b>.</p>
+        <p><b>Its reasoning:</b> “…{esc(EX_QUOTE)}” It never mentions the hint.</p>
+        <p><b>Classifier score:</b> {EX_RUN['post_score']:.3f}, above the warning threshold.</p>
+        <p><i>Picked by a fixed rule; one of {demo_idx['gallery']['caught']['n_total']} flagged answers in our demo.</i></p>
       </div></div>
-      <div class="sec"><div class="bar">Discussion</div><div class="box">
+      <div class="sec"><div class="bar">Conclusions</div><div class="box">
         <div class="stat">
-          <div><div class="n" style="color:{NAVY}">{post.auroc:.2f}</div><div class="t">AUROC of a hint-blind activation probe</div></div>
-          <div><div class="n" style="color:{COPPER}">{N_FIX_PASS}/{len(holm8)}</div><div class="t">interventions effective under chain-of-thought (held-out test)</div></div>
+          <div><div class="n" style="color:{NAVY}">{post.auroc:.2f}</div><div class="t">how well internal activity identifies hint-following (1.0 = perfect)</div></div>
+          <div><div class="n" style="color:{COPPER}">{N_FIX_PASS} of {len(holm8)}</div><div class="t">fixes that worked when the model reasons step by step</div></div>
         </div>
         <ol>
-          <li>Cue influence is carried by a letter-level signal that activations expose and the reasoning omits.</li>
-          <li>The probe detects agreement, not concealment: it fires on {pct(ack_flag)} of verbalized runs and on {pct(agree['mean'])} of correct-answer hints the model already preferred, and on text-named cues it flags under {pct(p8_text.badge_rate_unfaithful.max())} of unverbalized runs.</li>
-          <li>Interventions validated on single-pass answers do not hold under chain-of-thought, consistent with the reasoning reconstructing the cue’s influence.</li>
-          <li>Activation monitors require evaluation outside their training distribution; this probe did not transfer to injection.</li>
+          <li>The hint’s effect shows up in the model’s internal activity even when its written reasoning says nothing.</li>
+          <li>The classifier detects “the answer matches the hint,” not hiding. It also fires when the model openly mentions the hint ({pct(ack_flag)} of such cases) and when the model would have chosen that answer anyway ({pct(agree['mean'])}). Catching real hiding needs a second check on the written reasoning.</li>
+          <li>Fixes that work on one-word answers fail once the model reasons step by step; the reasoning seems to bring the hint’s effect back.</li>
+          <li>The classifier did not catch prompt injection, so it should not be trusted on problems it was not trained on.</li>
         </ol>
       </div></div>
       <div class="sec"><div class="bar">Limitations</div><div class="box small">
         <ul>
-          <li>One 4B model; English multiple choice; greedy decoding.</li>
-          <li>Most cues name an option letter; fabricated-evidence cues were verbalized in {int(p8_ev.n_faithful)} of {int(p8_ev.followed)} followed runs.</li>
-          <li>Judge validated against model annotators, not clinicians.</li>
-          <li>SAEs trained on Gemma 3, not MedGemma; only four layers examined.</li>
+          <li>One small (4B) model; English multiple-choice questions.</li>
+          <li>Most hints name an answer letter. When we inserted a made-up clinical finding instead, the model mentioned it in {int(p8_ev.n_faithful)} of {int(p8_ev.followed)} cases, so there was little hiding to detect.</li>
+          <li>Labels come from an AI judge checked against other AI models, not doctors.</li>
+          <li>Gemma Scope 2 was built for the general Gemma 3 model, not MedGemma, and we examined only 4 layers.</li>
         </ul>
       </div></div>
       <div class="sec grow"><div class="bar">References</div><div class="box small">
