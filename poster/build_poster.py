@@ -291,7 +291,7 @@ BODY = f"""
   <div class="cols">
     <div class="col">
       <div class="sec"><div class="bar">Abstract</div><div class="box">
-        <p>Black-box studies [1, 2, 5] show that language models, including medical models, adopt cues their reasoning omits. We examine the internals of MedGemma 4B on {N_Q} MedQA questions. SAE attribution and ablation localize cue influence to answer-letter features on the hint tokens. A hint-blind layer-22 probe detects unverbalized hint-following (AUROC {post.auroc:.2f}; text baselines ≤ {TEXT_MAX:.2f}) but encodes agreement with a suggested letter rather than concealment. Steering that works on single-pass answers fails under chain-of-thought, and the probe does not transfer to prompt injection.</p>
+        <p>Black-box studies [1, 2, 5] show that language models, including medical models, adopt cues their reasoning omits. We examine the internals of MedGemma 4B on {N_Q} MedQA questions. SAE attribution and ablation localize cue influence to answer-letter features on the hint tokens. A classifier trained on internal activations, without access to the hint, identifies answers that followed the hint without acknowledging it (AUROC {post.auroc:.2f}, versus at most {TEXT_MAX:.2f} for classifiers that read the written reasoning). However, it responds whenever the answer matches the suggested option, including when the hint is acknowledged, so it does not detect concealment as such. Steering that works on single-pass answers fails under chain-of-thought, and the probe does not transfer to prompt injection.</p>
       </div></div>
       <div class="sec"><div class="bar">Contributions</div><div class="box">
         <ol>
