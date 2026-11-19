@@ -1,11 +1,11 @@
-"""Build the 24 x 36 in project poster (HTML -> vector PDF via headless Chrome).
+"""Build the project poster, 24 x 24 in (default) or 24 x 36 in (HTML -> vector PDF via headless Chrome).
 
 Every number is read from saved run outputs (paths in RUNS); nothing is typed in by hand, and key
 numbers are asserted against the phase reports. The layout, palette, fonts and chart helper are
 adapted from the author's earlier Silent Second Opinion poster (../silent-second-opinion/poster).
 
-Run from the repo root:  PYTHONPATH=scripts uv run python poster/build_poster.py [--no-pdf]
-Outputs: poster/poster.html, poster/medlens-honesty-poster-24x36.pdf
+Run from the repo root:  PYTHONPATH=scripts uv run python poster/build_poster.py [--size=24x36] [--no-pdf]
+Outputs: poster/poster.html, poster/medlens-honesty-poster-<size>.pdf
 Chart SVGs use a viewBox in points (1 unit = 1 pt), so font-size N in a chart prints at N pt.
 """
 
@@ -40,7 +40,11 @@ RUNS = {
 }
 CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 OUT_HTML = ROOT / "poster" / "poster.html"
-OUT_PDF = ROOT / "poster" / "medlens-honesty-poster-24x36.pdf"
+SIZE = next((a.split("=", 1)[1] for a in sys.argv if a.startswith("--size=")), "24x24")
+assert SIZE in ("24x24", "24x36"), SIZE
+SQ = SIZE == "24x24"  # square layout: 4 columns, smaller type, narrower charts
+W_IN, H_IN = (int(v) for v in SIZE.split("x"))
+OUT_PDF = ROOT / "poster" / f"medlens-honesty-poster-{SIZE}.pdf"
 
 # Duke brand palette (brand.duke.edu/colors), as in the Silent Second Opinion poster
 NAVY, ROYAL, COPPER = "#012169", "#00539B", "#C84E00"
@@ -125,7 +129,7 @@ assert (int(p8_ev.n_unfaithful), int(p8_ev.n_faithful)) == (2, 59)
 
 # ---- vector charts (viewBox in points) ---------------------------------------------------------------
 def vbars(width, height, groups, baseline=None, baseline_label="", legend=(), ymax=1.0,
-          ticks=(0, .25, .5, .75, 1.0), right=0):
+          ticks=(0, .25, .5, .75, 1.0), right=0, label_fs=21, legend_fs=21):
     """Grouped bars with 95% whiskers. groups = [{label, sub, bars: [{v, lo, hi, color}]}]."""
     left, top = 78, 30
     legend_h = 38 * len(legend) + (14 if legend else 0)
@@ -155,7 +159,7 @@ def vbars(width, height, groups, baseline=None, baseline_label="", legend=(), ym
                 g.append(f'<line x1="{cx - 7:.1f}" x2="{cx + 7:.1f}" y1="{y(yy):.1f}" y2="{y(yy):.1f}" stroke="{INK}" stroke-width="2.2"/>')
             g.append(f'<text x="{cx:.1f}" y="{y(b["hi"]) - 9:.1f}" text-anchor="middle" font-size="25" font-weight="700" fill="{INK}">{round(100 * b["v"])}%</text>')
         gx = left + gi * gw + gw / 2
-        g.append(f'<text x="{gx:.1f}" y="{top + ph + 32:.1f}" text-anchor="middle" font-size="21" font-weight="700" fill="{INK}">{esc(grp["label"])}</text>')
+        g.append(f'<text x="{gx:.1f}" y="{top + ph + 32:.1f}" text-anchor="middle" font-size="{label_fs}" font-weight="700" fill="{INK}">{esc(grp["label"])}</text>')
         if grp.get("sub"):
             g.append(f'<text x="{gx:.1f}" y="{top + ph + 60:.1f}" text-anchor="middle" font-size="19" fill="{MUTED}">{esc(grp["sub"])}</text>')
     g.append(f'<line x1="{left}" x2="{left + pw}" y1="{y(0):.1f}" y2="{y(0):.1f}" stroke="{INK}" stroke-width="1.8"/>')
@@ -167,14 +171,15 @@ def vbars(width, height, groups, baseline=None, baseline_label="", legend=(), ym
     for k, (fill, text) in enumerate(legend):
         yy = ly + 34 * k + 8
         g.append(f'<rect x="{left}" y="{yy - 17:.1f}" width="26" height="26" fill="{fill}"/>')
-        g.append(f'<text x="{left + 38}" y="{yy + 4:.1f}" font-size="21" fill="{INK}">{esc(text)}</text>')
+        g.append(f'<text x="{left + 38}" y="{yy + 4:.1f}" font-size="{legend_fs}" fill="{INK}">{esc(text)}</text>')
     g.append("</svg>")
     return "".join(g)
 
 
-def hbars(width, rows, chance=0.5, xmin=0.3):
-    """AUROC bars drawn from chance (0.5) on a 0.3-1.0 axis, with 95% whiskers. rows = [(label, value, (lo, hi) | None, color)]."""
-    left, right, top, rh = 250, 60, 16, 46
+def hbars(width, rows, chance=0.5, xmin=0.3, wrap=False):
+    """AUROC bars drawn from chance (0.5) on a 0.3-1.0 axis, with 95% whiskers. rows = [(label, value, (lo, hi) | None, color)].
+    A "|" in a label is a line break when wrap is True, else a space."""
+    left, right, top, rh = (150, 60, 16, 56) if wrap else (250, 60, 16, 46)
     height = top + rh * len(rows) + 46
     pw = width - left - right
 
@@ -188,7 +193,10 @@ def hbars(width, rows, chance=0.5, xmin=0.3):
         g.append(f'<text x="{x(t):.1f}" y="{top + rh * len(rows) + 28}" text-anchor="middle" font-size="19" fill="{MUTED}">{t:.1f}</text>')
     for i, (lab, v, ci, color) in enumerate(rows):
         yc = top + rh * i + rh / 2
-        g.append(f'<text x="{left - 12}" y="{yc + 7:.1f}" text-anchor="end" font-size="20" fill="{INK}">{esc(lab)}</text>')
+        lines = lab.split("|") if wrap else [lab.replace("|", " ")]
+        for k, line in enumerate(lines):
+            ly = yc + 7 + 21 * (k - (len(lines) - 1) / 2)
+            g.append(f'<text x="{left - 12}" y="{ly:.1f}" text-anchor="end" font-size="20" fill="{INK}">{esc(line)}</text>')
         x0, x1 = sorted((x(chance), x(v)))
         g.append(f'<rect x="{x0:.1f}" y="{yc - 14:.1f}" width="{max(2, x1 - x0):.1f}" height="28" fill="{color}"/>')
         end = max(x(ci[1]) if ci else x(v), x(chance))
@@ -206,28 +214,29 @@ def wilson_bar(rate: float, n: int, color: str) -> dict:
 
 
 fig_follow = vbars(
-    540, 260,
+    *((470, 250) if SQ else (540, 260)),
     [{"label": lab,
       "bars": [{"v": follow[k]["rate"], "lo": follow[k]["lo"], "hi": follow[k]["hi"], "color": COPPER if k == "metadata" else ROYAL}]}
      for k, lab in FRAMINGS],
-    baseline=SHAM, baseline_label=f"sham|{pct(SHAM)}", ymax=0.8, ticks=(0, .2, .4, .6, .8), right=70,
+    baseline=SHAM, baseline_label="" if SQ else f"sham|{pct(SHAM)}", ymax=0.8, ticks=(0, .2, .4, .6, .8),
+    right=10 if SQ else 70, label_fs=18 if SQ else 21,
 )
 
 mpib_post_ci = tuple(H1["auroc_attacked_ci"])
-fig_detect = hbars(560, [
-    ("Classifier, after", float(post.auroc), tuple(POST_CI), NAVY),
-    ("Classifier, before", float(pre.auroc), tuple(json.loads(pre.auroc_ci)), ROYAL),
-    ("AI judge on reasoning", base["llm_judge_yes_rate"]["auroc"], None, "#8A96AD"),
-    ("Hint type alone", fu["hint_type_only"]["auroc"], None, "#8A96AD"),
-    ("Word counts in reasoning", base["text_tfidf_reasoning_only"]["auroc"], None, "#8A96AD"),
-    ("Classifier on injection", H1["auroc_attacked_run"], mpib_post_ci, COPPER),
-])
+fig_detect = hbars(470 if SQ else 560, [
+    ("Classifier,|after", float(post.auroc), tuple(POST_CI), NAVY),
+    ("Classifier,|before", float(pre.auroc), tuple(json.loads(pre.auroc_ci)), ROYAL),
+    ("AI judge on|reasoning", base["llm_judge_yes_rate"]["auroc"], None, "#8A96AD"),
+    ("Hint type|alone", fu["hint_type_only"]["auroc"], None, "#8A96AD"),
+    ("Word counts|in reasoning", base["text_tfidf_reasoning_only"]["auroc"], None, "#8A96AD"),
+    ("Classifier on|injection", H1["auroc_attacked_run"], mpib_post_ci, COPPER),
+], wrap=SQ)
 
 scfg = yaml.safe_load((RUNS["phase4_screen"] / "config.yaml").read_text())
 n_s = scfg["screen"]["n_hinted_per_framing"] * len(scfg["framings"])  # wrong-hint prompts per setting
 n_c = int(cot4.loc["baseline", "n_eligible"])
 fig_fix = vbars(
-    560, 330,
+    *((470, 300) if SQ else (560, 330)),
     [{"label": "One-word answer", "sub": f"n = {n_s}",
       "bars": [wilson_bar(float(screen.loc["baseline", "follow_rate"]), n_s, "#8A96AD"),
                wilson_bar(float(screen.loc["ablate_pre_L22", "follow_rate"]), n_s, NAVY)]},
@@ -235,49 +244,54 @@ fig_fix = vbars(
       "bars": [wilson_bar(float(cot4.loc["baseline", "follow_rate"]), n_c, "#8A96AD"),
                wilson_bar(float(cot4.loc["ablate_pre_L22", "follow_rate"]), n_c, NAVY)]}],
     legend=[("#8A96AD", "No fix"), (NAVY, "Hint direction removed (layer 22)")],
-    ymax=0.6, ticks=(0, .2, .4, .6),
+    ymax=0.6, ticks=(0, .2, .4, .6), label_fs=17 if SQ else 21, legend_fs=18 if SQ else 21,
 )
 
 # ---- content ----------------------------------------------------------------------------------------
 fmeta, fexp = follow["metadata"], follow["explicit"]
 silent_share = 1 - N_ADMITTED / N_FOLLOWED
+# Type and spacing per page size. The square page has 2/3 the area, so type is about 0.82x.
+T = (dict(pad=0.3, gap=0.18, title_h=2.3, logo=1.95, logo_col=2.25, h1=40, who=26, inst=21, cols="1fr 1.2fr 1.2fr 1.12fr",
+          cgap=0.25, sgap=0.15, bar=28, body=17.5, small=16, cap=16.5, stat_n=52, stat_t=16.5, glabel=22, svg="100%")
+     if SQ else
+     dict(pad=0.35, gap=0.24, title_h=3.7, logo=3.1, logo_col=3.4, h1=52, who=34, inst=28, cols="1fr 1.2fr 1fr",
+          cgap=0.3, sgap=0.19, bar=38, body=22.5, small=20.5, cap=21, stat_n=66, stat_t=20.5, glabel=28, svg="7.4in"))
 CSS = FONTS + f"""
-@page {{ size: 24in 36in; margin: 0; }}
+@page {{ size: {W_IN}in {H_IN}in; margin: 0; }}
 * {{ box-sizing: border-box; }}
 html, body {{ margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
 body {{ font-family: "Open Sans", sans-serif; color: {INK}; }}
-.poster {{ width: 24in; height: 36in; overflow: hidden; background: #fff; padding: 0.35in; display: flex; flex-direction: column; gap: 0.24in; }}
-.title {{ background: {NAVY}; color: #fff; height: 3.7in; display: grid; grid-template-columns: 3.4in 1fr 0.6in; align-items: center; padding: 0.2in 0.25in; flex: none; }}
+.poster {{ width: {W_IN}in; height: {H_IN}in; overflow: hidden; background: #fff; padding: {T['pad']}in; display: flex; flex-direction: column; gap: {T['gap']}in; }}
+.title {{ background: {NAVY}; color: #fff; height: {T['title_h']}in; display: grid; grid-template-columns: {T['logo_col']}in 1fr 0.6in; align-items: center; padding: 0.2in 0.25in; flex: none; }}
 .title .mid {{ text-align: center; }}
-.logo {{ width: 3.1in; height: 3.1in; background: #fff; padding: 0.2in; display: flex; align-items: center; justify-content: center; }}
+.logo {{ width: {T['logo']}in; height: {T['logo']}in; background: #fff; padding: 0.2in; display: flex; align-items: center; justify-content: center; }}
 .logo img {{ width: 100%; height: 100%; display: block; object-fit: contain; }}
-.title h1 {{ font-family: "EB Garamond", serif; font-size: 52pt; line-height: 1.0; font-weight: 700; margin: 0 0 0.14in; }}
-.title .who {{ font-size: 34pt; font-weight: 700; line-height: 1.15; }}
-.title .inst {{ font-size: 28pt; font-weight: 600; line-height: 1.2; margin-top: 0.03in; }}
-.cols {{ flex: 1; display: grid; grid-template-columns: 1fr 1.2fr 1fr; gap: 0.3in; min-height: 0; }}
-.col {{ display: flex; flex-direction: column; gap: 0.19in; min-height: 0; }}
+.title h1 {{ font-family: "EB Garamond", serif; font-size: {T['h1']}pt; line-height: 1.0; font-weight: 700; margin: 0 0 0.14in; }}
+.title .who {{ font-size: {T['who']}pt; font-weight: 700; line-height: 1.15; }}
+.title .inst {{ font-size: {T['inst']}pt; font-weight: 600; line-height: 1.2; margin-top: 0.03in; }}
+.cols {{ flex: 1; display: grid; grid-template-columns: {T['cols']}; gap: {T['cgap']}in; min-height: 0; }}
+.col {{ display: flex; flex-direction: column; gap: {T['sgap']}in; min-height: 0; }}
 .sec {{ display: flex; flex-direction: column; gap: 0.1in; min-height: 0; }}
 .sec.grow {{ flex: 1; }}
-.bar {{ background: {NAVY}; color: #fff; font-weight: 700; font-size: 38pt; line-height: 1; padding: 0.15in 0.22in; flex: none; }}
+.bar {{ background: {NAVY}; color: #fff; font-weight: 700; font-size: {T['bar']}pt; line-height: 1; padding: 0.15in 0.22in; flex: none; }}
 .box {{ border: 0.045in solid {GRID}; padding: 0.2in 0.26in; flex: 1; min-height: 0; }}
-.box p, .box li {{ font-size: 22.5pt; line-height: 1.26; margin: 0 0 0.1in; }}
+.box p, .box li {{ font-size: {T['body']}pt; line-height: 1.26; margin: 0 0 0.1in; }}
 .box ul, .box ol {{ margin: 0; padding-left: 0.36in; }}
 .box li {{ margin-bottom: 0.11in; }}
-.small p, .small li {{ font-size: 20.5pt; margin-bottom: 0.08in; }}
-.cap {{ font-size: 21pt; line-height: 1.25; color: {MUTED}; margin: 0.04in 0 0.12in; }}
+.small p, .small li {{ font-size: {T['small']}pt; margin-bottom: 0.08in; }}
+.cap {{ font-size: {T['cap']}pt; line-height: 1.25; color: {MUTED}; margin: 0.04in 0 0.12in; }}
 .flag {{ color: {COPPER}; font-weight: 700; }}
 .stat {{ background: {PANEL}; padding: 0.14in 0.2in; margin: 0.06in 0 0.14in; display: grid; grid-template-columns: 1fr 1fr; gap: 0.2in; }}
-.stat .n {{ font-family: "EB Garamond", serif; font-size: 66pt; line-height: .95; font-weight: 700; }}
-.stat .t {{ font-size: 20.5pt; line-height: 1.2; }}
+.stat .n {{ font-family: "EB Garamond", serif; font-size: {T['stat_n']}pt; line-height: .95; font-weight: 700; }}
+.stat .t {{ font-size: {T['stat_t']}pt; line-height: 1.2; }}
 .grp {{ border-left: 0.07in solid {NAVY}; padding: 0.02in 0 0.04in 0.2in; margin-bottom: 0.18in; }}
 .grp ul {{ margin-top: 0; }}
-.glabel {{ font-weight: 700; font-size: 28pt; letter-spacing: 0.02em; color: {ROYAL}; margin: 0 0 0.06in; }}
+.glabel {{ font-weight: 700; font-size: {T['glabel']}pt; letter-spacing: 0.02em; color: {ROYAL}; margin: 0 0 0.06in; }}
 .also .glabel {{ color: {COPPER}; }}
-svg {{ width: 7.4in; max-width: 100%; height: auto; display: block; }}
+svg {{ width: {T['svg']}; max-width: 100%; height: auto; display: block; }}
 """
 
-BODY = f"""
-<div class="poster">
+TITLE = """
   <div class="title">
     <div class="logo"><img src="assets/duke-shield.png" alt="Duke University shield"></div>
     <div class="mid">
@@ -288,20 +302,21 @@ BODY = f"""
     <div></div>
   </div>
 
-  <div class="cols">
-    <div class="col">
-      <div class="sec"><div class="bar">Abstract</div><div class="box">
+"""
+ABSTRACT = f"""
         <p>Earlier studies [1, 2], including our own [5], showed that AI models often switch answers because of a hint in the prompt, while their written reasoning never mentions it. This project looks inside the model to see how that happens. On {N_Q} medical exam questions with MedGemma 4B, we found that the hint is carried inside the model mainly as “which answer letter was suggested.” A classifier that reads the model’s internal activity spots hint-following far better than tools that read the written reasoning, but it reacts to any answer that matches the hint, not specifically to hiding. Steering the model’s internal activity fixes one-word answers but not step-by-step ones, and the classifier does not catch prompt-injection attacks.</p>
-      </div></div>
-      <div class="sec"><div class="bar">What is new</div><div class="box">
+      
+"""
+WHAT_IS_NEW = """
         <ol>
           <li>We locate where the hint’s effect is carried inside the model: features that stand for the suggested answer letter. We found none that stand for who gave the hint.</li>
           <li>We build a classifier from internal activity that never sees the hint, and test it on hint styles it was not trained on.</li>
           <li>We show what that classifier really detects: agreement with the hint, not hiding.</li>
           <li>With plans fixed in advance, we test whether steering fixes the problem and whether the same signal flags prompt injection. Neither works.</li>
         </ol>
-      </div></div>
-      <div class="sec grow"><div class="bar">Methods</div><div class="box">
+      
+"""
+METHODS = f"""
         <ul>
           <li><b>Model:</b> MedGemma 4B, Google’s open medical model. Gemma Scope 2 breaks its internal activity into readable features.</li>
           <li><b>Questions:</b> {N_Q} four-option medical licensing exam questions (MedQA). With no hint the model gets {pct(ACC_NONE, 1)} right.</li>
@@ -311,48 +326,17 @@ BODY = f"""
           <li><b>Score:</b> AUROC, where 0.5 is guessing and 1.0 is perfect.</li>
           <li><b>Steering:</b> we found the internal direction that separates following from ignoring the hint, then removed it or pushed against it. Success rules were written down before running.</li>
         </ul>
-      </div></div>
-    </div>
-
-    <div class="col">
-      <div class="sec grow"><div class="bar">Results</div><div class="box">
-        <div class="grp">
-          <div class="glabel">1. How often hints change answers</div>
-          <ul><li>Every hint style changed more answers than the filler sentence ({pct(SHAM)}). The metadata tag changed {pct(fmeta['rate'])} of answers and was never mentioned.</li></ul>
-          {fig_follow}
-          <p class="cap">Share of answers that switched to the hinted (wrong) option. Dashed line: filler sentence. Bars show 95% confidence intervals. Times the reasoning mentioned the hint: {", ".join(f"{follow[k]['admitted']}/{follow[k]['followed']}" for k, _ in FRAMINGS)}.</p>
-        </div>
-        <div class="grp">
-          <div class="glabel">2. Where the hint is carried, and detecting it</div>
-          <ul>
-            <li>The features that carry the hint stand for the suggested answer letter. Switching off the top 10 lowered hint-following in one-word answers from {pct(c17['readout_follows_hint_before'])} to {pct(c17['readout_follows_hint_after'])}, but step-by-step answers did not change ({cot2['follow_after_intervention']} of {cot2['n']} still followed the hint).</li>
-            <li>The classifier scores {post.auroc:.2f} and works on hint styles it never trained on ({min(held_type):.2f}–{max(held_type):.2f}). When the hint names the answer in words instead of a letter, it drops to {p8_text.auroc_unfaithful_vs_unaffected.min():.2f}–{p8_text.auroc_unfaithful_vs_unaffected.max():.2f}.</li>
-          </ul>
-          {fig_detect}
-          <p class="cap">How well each method separates hidden hint-following from ignored hints ({int(post.n):,} answers). Classifier read after or before the reasoning. Bottom bar: the same classifier on {H1['n_moved'] + H1['n_not_moved']} prompt-injection cases.</p>
-        </div>
-        <div class="grp">
-          <div class="glabel">3. Trying to fix it by steering</div>
-          <ul><li>Removing the hint direction cut hint-following in one-word answers from {pct(float(screen.loc['baseline', 'follow_rate']))} to {pct(float(screen.loc['ablate_pre_L22', 'follow_rate']))}; random directions did nothing. When the model reasons step by step, {N_FIX_PASS} of {len(holm8)} methods reduced hidden hint-following on 100 new questions.</li></ul>
-          {fig_fix}
-          <p class="cap">Hint-following with and without the fix, on the first set of questions. Bars show 95% confidence intervals.</p>
-        </div>
-        <div class="grp">
-          <div class="glabel">4. Prompt injection</div>
-          <ul><li>Hidden instructions inside the question (MPIB) changed {pct(mpib['moved_rate_baseline'])} of answers, but the classifier could not tell which ones ({H1['auroc_attacked_run']:.2f}, no better than guessing).</li></ul>
-        </div>
-      </div></div>
-    </div>
-
-    <div class="col">
-      <div class="sec"><div class="bar">Example</div><div class="box small">
+      
+"""
+EXAMPLE = f"""
         <p><b>Question</b> (pharmacology): fever and sweating after taking imported diet pills. B = uncoupling of oxidative phosphorylation (correct); C = bacterial contamination (wrong).</p>
         <p><b>Without the hint</b> the model answered <b>{EX_Q['runs']['none']['pred']}</b>. With <span class="flag">“{esc(EX_RUN['cue'])}”</span> it answered <b>{EX_RUN['pred']}</b>.</p>
         <p><b>Its reasoning:</b> “…{esc(EX_QUOTE)}” It never mentions the hint.</p>
         <p><b>Classifier score:</b> {EX_RUN['post_score']:.3f}, above the warning threshold.</p>
         <p><i>Picked by a fixed rule; one of {demo_idx['gallery']['caught']['n_total']} flagged answers in our demo.</i></p>
-      </div></div>
-      <div class="sec"><div class="bar">Conclusions</div><div class="box">
+      
+"""
+CONCLUSIONS = f"""
         <div class="stat">
           <div><div class="n" style="color:{NAVY}">{post.auroc:.2f}</div><div class="t">how well internal activity identifies hint-following (1.0 = perfect)</div></div>
           <div><div class="n" style="color:{COPPER}">{N_FIX_PASS} of {len(holm8)}</div><div class="t">fixes that worked when the model reasons step by step</div></div>
@@ -363,16 +347,17 @@ BODY = f"""
           <li>Fixes that work on one-word answers fail once the model reasons step by step; the reasoning seems to bring the hint’s effect back.</li>
           <li>The classifier did not catch prompt injection, so it should not be trusted on problems it was not trained on.</li>
         </ol>
-      </div></div>
-      <div class="sec"><div class="bar">Limitations</div><div class="box small">
+"""
+LIMITATIONS = f"""
         <ul>
           <li>One small (4B) model; English multiple-choice questions.</li>
           <li>Most hints name an answer letter. When we inserted a made-up clinical finding instead, the model mentioned it in {int(p8_ev.n_faithful)} of {int(p8_ev.followed)} cases, so there was little hiding to detect.</li>
           <li>Labels come from an AI judge checked against other AI models, not doctors.</li>
           <li>Gemma Scope 2 was built for the general Gemma 3 model, not MedGemma, and we examined only 4 layers.</li>
         </ul>
-      </div></div>
-      <div class="sec grow"><div class="bar">References</div><div class="box small">
+      
+"""
+REFERENCES = """
         <ol>
           <li>Turpin et al. <i>Language Models Don’t Always Say What They Think.</i> NeurIPS (2023).</li>
           <li>Afolabi et al. <i>Faithful or Just Plausible?</i> ML4H, arXiv:2603.13988 (2026).</li>
@@ -382,14 +367,68 @@ BODY = f"""
           <li>Lee, Jang &amp; Choi. <i>MPIB.</i> Findings of EMNLP (2026).</li>
         </ol>
         <p style="margin-top:0.12in">Research use only. Model text is AI-generated and is not medical advice.</p>
-      </div></div>
-    </div>
-  </div>
-</div>
+      
+"""
+RES1 = f"""
+        <div class="grp">
+          <div class="glabel">1. How often hints change answers</div>
+          <ul><li>Every hint style changed more answers than the filler sentence ({pct(SHAM)}). The metadata tag changed {pct(fmeta['rate'])} of answers and was never mentioned.</li></ul>
+          {fig_follow}
+          <p class="cap">Share of answers that switched to the hinted (wrong) option. Dashed line: filler sentence. Bars show 95% confidence intervals. Times the reasoning mentioned the hint: {", ".join(f"{follow[k]['admitted']}/{follow[k]['followed']}" for k, _ in FRAMINGS)}.</p>
+        </div>
+"""
+RES2 = f"""
+        <div class="grp">
+          <div class="glabel">2. Where the hint is carried, and detecting it</div>
+          <ul>
+            <li>The features that carry the hint stand for the suggested answer letter. Switching off the top 10 lowered hint-following in one-word answers from {pct(c17['readout_follows_hint_before'])} to {pct(c17['readout_follows_hint_after'])}, but step-by-step answers did not change ({cot2['follow_after_intervention']} of {cot2['n']} still followed the hint).</li>
+            <li>The classifier scores {post.auroc:.2f} and works on hint styles it never trained on ({min(held_type):.2f}–{max(held_type):.2f}). When the hint names the answer in words instead of a letter, it drops to {p8_text.auroc_unfaithful_vs_unaffected.min():.2f}–{p8_text.auroc_unfaithful_vs_unaffected.max():.2f}.</li>
+          </ul>
+          {fig_detect}
+          <p class="cap">How well each method separates hidden hint-following from ignored hints ({int(post.n):,} answers). Classifier read after or before the reasoning. Bottom bar: the same classifier on {H1['n_moved'] + H1['n_not_moved']} prompt-injection cases.</p>
+        </div>
+"""
+RES3 = f"""
+        <div class="grp">
+          <div class="glabel">3. Trying to fix it by steering</div>
+          <ul><li>Removing the hint direction cut hint-following in one-word answers from {pct(float(screen.loc['baseline', 'follow_rate']))} to {pct(float(screen.loc['ablate_pre_L22', 'follow_rate']))}; random directions did nothing. When the model reasons step by step, {N_FIX_PASS} of {len(holm8)} methods reduced hidden hint-following on 100 new questions.</li></ul>
+          {fig_fix}
+          <p class="cap">Hint-following with and without the fix, on the first set of questions. Bars show 95% confidence intervals.</p>
+        </div>
+"""
+RES4 = f"""
+        <div class="grp">
+          <div class="glabel">4. Prompt injection</div>
+          <ul><li>Hidden instructions inside the question (MPIB) changed {pct(mpib['moved_rate_baseline'])} of answers, but the classifier could not tell which ones ({H1['auroc_attacked_run']:.2f}, no better than guessing).</li></ul>
+        </div>
 """
 
+
+def sec(name: str, content: str, small: bool = False, grow: bool = False) -> str:
+    return (f'<div class="sec{" grow" if grow else ""}"><div class="bar">{name}</div>'
+            f'<div class="box{" small" if small else ""}">{content}</div></div>')
+
+
+if SQ:
+    COLS = [
+        [sec("Abstract", ABSTRACT), sec("What is new", WHAT_IS_NEW), sec("Example", EXAMPLE, small=True, grow=True)],
+        [sec("Methods", METHODS), sec("Results", RES1, grow=True)],
+        [sec("Results (continued)", RES2 + RES3 + RES4, grow=True)],
+        [sec("Conclusions", CONCLUSIONS), sec("Limitations", LIMITATIONS, small=True),
+         sec("References", REFERENCES, small=True, grow=True)],
+    ]
+else:
+    COLS = [
+        [sec("Abstract", ABSTRACT), sec("What is new", WHAT_IS_NEW), sec("Methods", METHODS, grow=True)],
+        [sec("Results", RES1 + RES2 + RES3 + RES4, grow=True)],
+        [sec("Example", EXAMPLE, small=True), sec("Conclusions", CONCLUSIONS), sec("Limitations", LIMITATIONS, small=True),
+         sec("References", REFERENCES, small=True, grow=True)],
+    ]
+BODY = ('<div class="poster">' + TITLE + '<div class="cols">'
+        + "".join('<div class="col">' + "".join(c) + "</div>" for c in COLS) + "</div></div>")
+
 OUT_HTML.write_text(
-    f'<!doctype html><html lang="en"><head><meta charset="utf-8"><title>MedLens honesty poster (24 x 36)</title>'
+    f'<!doctype html><html lang="en"><head><meta charset="utf-8"><title>MedLens honesty poster ({W_IN} x {H_IN})</title>'
     f"<style>{CSS}</style></head><body>{BODY}</body></html>"
 )
 print("wrote", OUT_HTML)
