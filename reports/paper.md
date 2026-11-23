@@ -1,5 +1,7 @@
 # Silent Hints in a Medical Language Model: Activations Reveal Hint-Following That the Reasoning Hides, but Steering and Injection Transfer Fail
 
+**Temesgen Tewolde**
+
 *Workshop paper draft · Duke AIPI 590 (Explainable AI) final project · 2026-11-16, updated
 2026-11-18 with Phase 8*
 
